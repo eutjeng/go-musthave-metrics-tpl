@@ -27,35 +27,35 @@ func TestInMemoryStorage(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			s := NewInMemoryStorage()
 
-			// Update counters
-			for name, value := range tt.counterUpdates {
-				err := s.UpdateCounter(name, value)
-				if err != nil {
-					t.Errorf("UpdateCounter() error = %v", err)
+			t.Run("UpdateAndCheckCounters", func(t *testing.T) {
+				for name, value := range tt.counterUpdates {
+					err := s.UpdateCounter(name, value)
+					if err != nil {
+						t.Errorf("UpdateCounter() error = %v", err)
+					}
 				}
-			}
 
-			// Update gauges
-			for name, value := range tt.gaugeUpdates {
-				err := s.UpdateGauge(name, value)
-				if err != nil {
-					t.Errorf("UpdateGauge() error = %v", err)
+				for name, value := range tt.counterUpdates {
+					if s.counter[name] != value {
+						t.Errorf("Expected counter %s to be %d, got %d", name, value, s.counter[name])
+					}
 				}
-			}
+			})
 
-			// Check counters
-			for name, value := range tt.counterUpdates {
-				if s.counter[name] != value {
-					t.Errorf("Expected counter %s to be %d, got %d", name, value, s.counter[name])
+			t.Run("UpdateAndCheckGauges", func(t *testing.T) {
+				for name, value := range tt.gaugeUpdates {
+					err := s.UpdateGauge(name, value)
+					if err != nil {
+						t.Errorf("UpdateGauge() error = %v", err)
+					}
 				}
-			}
 
-			// Check gauges
-			for name, value := range tt.gaugeUpdates {
-				if s.gauges[name] != value {
-					t.Errorf("Expected gauge %s to be %f, got %f", name, value, s.gauges[name])
+				for name, value := range tt.gaugeUpdates {
+					if s.gauges[name] != value {
+						t.Errorf("Expected gauge %s to be %f, got %f", name, value, s.gauges[name])
+					}
 				}
-			}
+			})
 		})
 	}
 }
