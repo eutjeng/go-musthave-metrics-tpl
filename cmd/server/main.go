@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -24,6 +25,8 @@ func main() {
 		}
 	}()
 
-	http.ListenAndServe(":8080", mux)
-
+	err := http.ListenAndServe(":8080", mux)
+	if err != nil {
+		log.Fatalf("Failed to start server: %v", err)
+	}
 }

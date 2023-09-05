@@ -38,7 +38,7 @@ func HandleUpdateMetric(storage storage.MetricStorage) http.HandlerFunc {
 			}
 
 		default:
-			err = fmt.Errorf("Invalid metric type")
+			err = fmt.Errorf("invalid metric type")
 		}
 
 		if err != nil {
