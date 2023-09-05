@@ -14,7 +14,7 @@ func main() {
 	var storage storage.MetricStorage = storage.NewInMemoryStorage()
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/update/", handlers.HandleUpdateMetrics(storage))
+	mux.HandleFunc("/update/", handlers.HandleUpdateMetric(storage))
 
 	go func() {
 		for {

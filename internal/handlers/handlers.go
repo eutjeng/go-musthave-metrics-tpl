@@ -8,7 +8,7 @@ import (
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/utils"
 )
 
-func HandleUpdateMetrics(storage storage.MetricStorage) http.HandlerFunc {
+func HandleUpdateMetric(storage storage.MetricStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		parts := utils.SplitPath(r.URL.Path)
 

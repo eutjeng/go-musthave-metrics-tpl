@@ -46,7 +46,7 @@ func TestHandleUpdateMetrics(t *testing.T) {
 
 			storage := storage.NewInMemoryStorage()
 			rr := httptest.NewRecorder()
-			handler := http.HandlerFunc(handlers.HandleUpdateMetrics(storage))
+			handler := http.HandlerFunc(handlers.HandleUpdateMetric(storage))
 
 			handler.ServeHTTP(rr, req)
 
