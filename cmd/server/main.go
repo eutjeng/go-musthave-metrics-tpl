@@ -6,16 +6,15 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/go-chi/chi/v5"
+
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/handlers"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/storage"
 )
 
 func main() {
-
 	var storage storage.MetricStorage = storage.NewInMemoryStorage()
-	mux := http.NewServeMux()
-
-	mux.HandleFunc("/update/", handlers.HandleUpdateMetric(storage))
+	r := chi.NewRouter()
 
 	go func() {
 		for {
@@ -25,7 +24,12 @@ func main() {
 		}
 	}()
 
-	err := http.ListenAndServe(":8080", mux)
+	r.Route("/update", func(r chi.Router) {
+		r.Post("/{type}/{name}/{value}", handlers.HandleUpdateMetric(storage))
+	})
+
+	err := http.ListenAndServe("localhost:8080", r)
+
 	if err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}

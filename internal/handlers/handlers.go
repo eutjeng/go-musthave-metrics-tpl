@@ -4,37 +4,35 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/go-chi/chi/v5"
+
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/storage"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/utils"
 )
 
 func HandleUpdateMetric(storage storage.MetricStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		parts := utils.SplitPath(r.URL.Path)
+		mT := chi.URLParam(r, "type")
+		mN := chi.URLParam(r, "name")
+		mV := chi.URLParam(r, "value")
 
-		if len(parts) != 4 {
-			http.Error(w, "Not found", http.StatusNotFound)
-			return
-		}
-
-		metricType, metricName, metricValue := parts[1], parts[2], parts[3]
 		var err error
 
-		switch metricType {
+		switch mT {
 		case "gauge":
 			var value float64
-			value, err = utils.ParseFloat(metricValue)
+			value, err = utils.ParseFloat(mV)
 
 			if err == nil {
-				err = storage.UpdateGauge(metricName, value)
+				err = storage.UpdateGauge(mN, value)
 			}
 
 		case "counter":
 			var value int64
-			value, err = utils.ParseInt(metricValue)
+			value, err = utils.ParseInt(mV)
 
 			if err == nil {
-				err = storage.UpdateCounter(metricName, value)
+				err = storage.UpdateCounter(mN, value)
 			}
 
 		default:
@@ -42,6 +40,7 @@ func HandleUpdateMetric(storage storage.MetricStorage) http.HandlerFunc {
 		}
 
 		if err != nil {
+			fmt.Println("Error:", err)
 			http.Error(w, "Bad request", http.StatusBadRequest)
 			return
 		}
