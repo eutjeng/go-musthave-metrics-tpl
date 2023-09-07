@@ -24,54 +24,61 @@ func TestHandleUpdateAndGetMetrics(t *testing.T) {
 
 	testCases := []struct {
 		name           string
-		updateUrl      string
-		getUrl         string
+		updateURL      string
+		getURL         string
 		expectedStatus int
 		expectedValue  string
 		skipGet        bool
 	}{
 		{
 			name:           "Valid gauge",
-			updateUrl:      "/update/gauge/someTest/42.2",
-			getUrl:         "/value/gauge/someTest",
+			updateURL:      "/update/gauge/someTest/42.2",
+			getURL:         "/value/gauge/someTest",
 			expectedStatus: http.StatusOK,
 			expectedValue:  "42.2",
 		},
 		{
 			name:           "Valid counter",
-			updateUrl:      "/update/counter/someTest/42",
-			getUrl:         "/value/counter/someTest",
+			updateURL:      "/update/counter/someTest/42",
+			getURL:         "/value/counter/someTest",
 			expectedStatus: http.StatusOK,
 			expectedValue:  "42",
 		},
+
 		{
 			name:           "Invalid update path",
-			updateUrl:      "/update/gauge/",
+			updateURL:      "/update/gauge/",
 			expectedStatus: http.StatusNotFound,
+			skipGet:        true,
+		},
+		{
+			name:           "Invalid update counter type",
+			updateURL:      "/update/counter/testCounter/none",
+			expectedStatus: http.StatusBadRequest,
 			skipGet:        true,
 		},
 		{
 			name:           "Invalid update metric type",
-			updateUrl:      "/update/invalidType/temperature/23.4",
-			expectedStatus: http.StatusNotFound,
+			updateURL:      "/update/invalidType/temperature/23.4",
+			expectedStatus: http.StatusBadRequest,
 			skipGet:        true,
 		},
 		{
 			name:           "Get non-existing gauge",
-			getUrl:         "/value/gauge/nonExisting",
+			getURL:         "/value/gauge/nonExisting",
 			expectedStatus: http.StatusNotFound,
 		},
 		{
 			name:           "Get non-existing counter",
-			getUrl:         "/value/counter/nonExisting",
+			getURL:         "/value/counter/nonExisting",
 			expectedStatus: http.StatusNotFound,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			if tc.updateUrl != "" {
-				updateReq, err := http.NewRequest("POST", ts.URL+tc.updateUrl, nil)
+			if tc.updateURL != "" {
+				updateReq, err := http.NewRequest("POST", ts.URL+tc.updateURL, nil)
 				assert.NoError(t, err)
 				updateResp, err := ts.Client().Do(updateReq)
 				assert.NoError(t, err)
@@ -80,7 +87,7 @@ func TestHandleUpdateAndGetMetrics(t *testing.T) {
 			}
 
 			if !tc.skipGet {
-				getReq, err := http.NewRequest("GET", ts.URL+tc.getUrl, nil)
+				getReq, err := http.NewRequest("GET", ts.URL+tc.getURL, nil)
 				assert.NoError(t, err)
 				getResp, err := ts.Client().Do(getReq)
 				assert.NoError(t, err)

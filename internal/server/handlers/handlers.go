@@ -22,28 +22,23 @@ func HandleUpdateMetric(storage storage.MetricStorage) http.HandlerFunc {
 
 		switch mT {
 		case "gauge":
-			var v float64
-			v, err = utils.ParseFloat(mV)
-
-			if err == nil {
+			if v, e := utils.ParseFloat(mV); e == nil {
 				err = storage.UpdateGauge(mN, v)
+			} else {
+				http.Error(w, "Invalid value type for gauge", http.StatusBadRequest)
 			}
-
 		case "counter":
-			var v int64
-			v, err = utils.ParseInt(mV)
-
-			if err == nil {
+			if v, e := utils.ParseInt(mV); e == nil {
 				err = storage.UpdateCounter(mN, v)
+			} else {
+				http.Error(w, "Invalid value type for counter", http.StatusBadRequest)
 			}
-
 		default:
-			err = fmt.Errorf("invalid metric type")
+			http.Error(w, "Invalid metric type", http.StatusBadRequest)
 		}
 
 		if err != nil {
 			http.Error(w, "Not found", http.StatusNotFound)
-			return
 		}
 	}
 }
