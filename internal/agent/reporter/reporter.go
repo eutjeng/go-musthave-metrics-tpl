@@ -5,12 +5,13 @@ import (
 	"net/http"
 	"runtime"
 
-	"github.com/eutjeng/go-musthave-metrics-tpl/internal/agent/config"
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/config"
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/utils"
 	"github.com/go-resty/resty/v2"
 )
 
 func reportMetric(metricType, name string, value interface{}, client *resty.Client) {
-	url := fmt.Sprintf("%s/update/%s/%s/%v", config.ServerAddress, metricType, name, value)
+	url := fmt.Sprintf("%s/update/%s/%s/%v", utils.EnsureHTTPScheme(config.FlagRunAddr), metricType, name, value)
 	resp, err := client.R().Post(url)
 
 	if err != nil {

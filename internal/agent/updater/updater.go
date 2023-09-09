@@ -3,7 +3,7 @@ package updater
 import (
 	"math/rand"
 
-	"github.com/eutjeng/go-musthave-metrics-tpl/internal/agent/config"
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/config"
 )
 
 func UpdateMetrics() {

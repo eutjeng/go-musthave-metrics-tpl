@@ -6,11 +6,13 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/config"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/handlers"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/storage"
 )
 
 func main() {
+	config.ParseFlags()
 	var storage storage.MetricStorage = storage.NewInMemoryStorage()
 	r := chi.NewRouter()
 
@@ -27,7 +29,7 @@ func main() {
 		r.Get("/{type}/{name}", handlers.HandleGetMetric(storage))
 	})
 
-	err := http.ListenAndServe("localhost:8080", r)
+	err := http.ListenAndServe(config.FlagRunAddr, r)
 
 	if err != nil {
 		log.Fatalf("Failed to start server: %v", err)
