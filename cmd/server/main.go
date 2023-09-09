@@ -25,18 +25,20 @@ func setupRouter(storage storage.MetricStorage) *chi.Mux {
 	return r
 }
 
-func checkError(err error, message string) {
-	if err != nil {
-		log.Fatalf("%s: %v", message, err)
-	}
-}
-
 func main() {
-	config.ParseFlags()
+	cfg, err := config.ParseConfig()
+
+	if err != nil {
+		log.Fatalf("Error while parsing config: %s", err)
+		return
+	}
+
 	storage := storage.NewInMemoryStorage()
 	r := setupRouter(storage)
 
-	err := http.ListenAndServe(config.FlagRunAddr, r)
+	err = http.ListenAndServe(cfg.Addr, r)
 
-	checkError(err, "Failed to start server")
+	if err != nil {
+		log.Fatalf("%s:", err)
+	}
 }

@@ -2,11 +2,9 @@ package updater
 
 import (
 	"math/rand"
-
-	"github.com/eutjeng/go-musthave-metrics-tpl/internal/config"
 )
 
-func UpdateMetrics() {
-	config.PollCount++
-	config.RandomValue = rand.Float64()
+func UpdateMetrics(pollCount *int64, randomValue *float64) {
+	*pollCount++
+	*randomValue = rand.Float64()
 }
