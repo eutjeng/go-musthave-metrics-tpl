@@ -12,13 +12,13 @@ import (
 )
 
 const (
-	UrlTemplate       = "%s/update/%s/%s/%v"
+	URLTemplate       = "%s/update/%s/%s/%v"
 	GaugeMetricType   = "gauge"
 	CounterMetricType = "counter"
 )
 
 func reportMetric(metricType, name string, value interface{}, client *resty.Client, cfg *config.Config) {
-	url := fmt.Sprintf(UrlTemplate, utils.EnsureHTTPScheme(cfg.Addr), metricType, name, value)
+	url := fmt.Sprintf(URLTemplate, utils.EnsureHTTPScheme(cfg.Addr), metricType, name, value)
 	resp, err := client.R().Post(url)
 
 	if err != nil {
