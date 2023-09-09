@@ -75,8 +75,8 @@ func TestConvertToSec(t *testing.T) {
 		{"10", 10 * time.Second, false},
 		{"0", 0, false},
 		{"-5", -5 * time.Second, false},
-		{"abc", 0, true}, // ожидается ошибка
-		{"", 0, true},    // ожидается ошибка
+		{"abc", 0, true},
+		{"", 0, true},
 	}
 
 	for _, test := range tests {
