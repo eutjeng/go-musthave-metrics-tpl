@@ -12,9 +12,9 @@ import (
 )
 
 const (
-	URLTemplate       = "%s/update/%s/%s/%v"
-	GaugeMetricType   = "gauge"
-	CounterMetricType = "counter"
+	urlTemplate       = "%s/update/%s/%s/%v"
+	gaugeMetricType   = "gauge"
+	counterMetricType = "counter"
 )
 
 func collectMemoryMetrics() map[string]float64 {
@@ -64,7 +64,7 @@ func reportSingleMetric(url string, client *resty.Client) {
 }
 
 func generateMetricURL(addr, metricType, name string, value interface{}) string {
-	return fmt.Sprintf(URLTemplate, utils.EnsureHTTPScheme(addr), metricType, name, value)
+	return fmt.Sprintf(urlTemplate, utils.EnsureHTTPScheme(addr), metricType, name, value)
 }
 
 func ReportMetrics(cfg *config.Config, client *resty.Client, RandomValue float64, PollCount int64) {
@@ -76,12 +76,12 @@ func ReportMetrics(cfg *config.Config, client *resty.Client, RandomValue float64
 	}
 
 	for name, value := range gauges {
-		url := generateMetricURL(cfg.Addr, GaugeMetricType, name, value)
+		url := generateMetricURL(cfg.Addr, gaugeMetricType, name, value)
 		reportSingleMetric(url, client)
 	}
 
 	for name, value := range counters {
-		url := generateMetricURL(cfg.Addr, CounterMetricType, name, value)
+		url := generateMetricURL(cfg.Addr, counterMetricType, name, value)
 		reportSingleMetric(url, client)
 	}
 }
