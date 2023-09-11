@@ -2,6 +2,7 @@ package storage
 
 import (
 	"fmt"
+	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -88,19 +89,15 @@ func (s *InMemoryStorage) GetCounter(name string) (int64, error) {
 
 func getSortedKeys(m interface{}) []string {
 	var keys []string
+	v := reflect.ValueOf(m)
 
-	switch mapType := m.(type) {
-	case map[string]int64:
-		for key := range mapType {
-			keys = append(keys, key)
+	if v.Kind() == reflect.Map {
+		for _, key := range v.MapKeys() {
+			keys = append(keys, key.String())
 		}
-	case map[string]float64:
-		for key := range mapType {
-			keys = append(keys, key)
-		}
+
+		sort.Strings(keys)
 	}
-
-	sort.Strings(keys)
 
 	return keys
 }
