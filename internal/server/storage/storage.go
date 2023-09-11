@@ -3,6 +3,7 @@ package storage
 import (
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 )
 
@@ -85,33 +86,49 @@ func (s *InMemoryStorage) GetCounter(name string) (int64, error) {
 	return value, nil
 }
 
+func getSortedKeys(m interface{}) []string {
+	var keys []string
+
+	switch mapType := m.(type) {
+	case map[string]int64:
+		for key := range mapType {
+			keys = append(keys, key)
+		}
+	case map[string]float64:
+		for key := range mapType {
+			keys = append(keys, key)
+		}
+	}
+
+	sort.Strings(keys)
+
+	return keys
+}
+
+func (s *InMemoryStorage) formatMapSortedKeys(m interface{}) string {
+	var result strings.Builder
+	keys := getSortedKeys(m)
+
+	for _, key := range keys {
+		switch mapType := m.(type) {
+		case map[string]int64:
+			result.WriteString(fmt.Sprintf("%s: %d\n", key, mapType[key]))
+		case map[string]float64:
+			result.WriteString(fmt.Sprintf("%s: %f\n", key, mapType[key]))
+		}
+	}
+	return result.String()
+}
+
 func (s *InMemoryStorage) String() string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	var result string
-	result += "Counter values:\n"
+	var result strings.Builder
+	result.WriteString("Counter values:\n")
+	result.WriteString(s.formatMapSortedKeys(s.counter))
+	result.WriteString("\nGauge values:\n")
+	result.WriteString(s.formatMapSortedKeys(s.gauges))
 
-	keysCounter := make([]string, 0, len(s.counter))
-	for key := range s.counter {
-		keysCounter = append(keysCounter, key)
-	}
-
-	sort.Strings(keysCounter)
-	for _, key := range keysCounter {
-		result += fmt.Sprintf("%s: %d\n", key, s.counter[key])
-	}
-
-	result += "\nGauge values:\n"
-	keysGauges := make([]string, 0, len(s.gauges))
-	for key := range s.gauges {
-		keysGauges = append(keysGauges, key)
-	}
-
-	sort.Strings(keysGauges)
-	for _, key := range keysGauges {
-		result += fmt.Sprintf("%s: %f\n", key, s.gauges[key])
-	}
-
-	return result
+	return result.String()
 }
