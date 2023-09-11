@@ -17,26 +17,11 @@ const (
 	CounterMetricType = "counter"
 )
 
-func reportMetric(metricType, name string, value interface{}, client *resty.Client, cfg *config.Config) {
-	url := fmt.Sprintf(URLTemplate, utils.EnsureHTTPScheme(cfg.Addr), metricType, name, value)
-	resp, err := client.R().Post(url)
-
-	if err != nil {
-		log.Printf("Error sending request for metric %s: %v\n", name, err)
-		return
-	}
-
-	if resp.StatusCode() != http.StatusOK {
-		log.Printf("Received non-OK response for metric %s: %s\n", name, resp.Status())
-	}
-}
-
-func ReportMetrics(cfg *config.Config, RandomValue float64, PollCount int64) {
+func collectMemoryMetrics() map[string]float64 {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
-	client := resty.New()
 
-	gauges := map[string]float64{
+	return map[string]float64{
 		"Alloc":         float64(m.Alloc),
 		"BuckHashSys":   float64(m.BuckHashSys),
 		"Frees":         float64(m.Frees),
@@ -62,19 +47,41 @@ func ReportMetrics(cfg *config.Config, RandomValue float64, PollCount int64) {
 		"StackSys":      float64(m.StackSys),
 		"Sys":           float64(m.Sys),
 		"TotalAlloc":    float64(m.TotalAlloc),
-
-		"RandomValue": RandomValue,
 	}
+}
+
+func reportSingleMetric(url string, client *resty.Client) {
+	resp, err := client.R().Post(url)
+
+	if err != nil {
+		log.Printf("Error sending request for metric: %v\n", err)
+		return
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		log.Printf("Received non-OK response for metric: %s\n", resp.Status())
+	}
+}
+
+func generateMetricURL(addr, metricType, name string, value interface{}) string {
+	return fmt.Sprintf(URLTemplate, utils.EnsureHTTPScheme(addr), metricType, name, value)
+}
+
+func ReportMetrics(cfg *config.Config, client *resty.Client, RandomValue float64, PollCount int64) {
+	gauges := collectMemoryMetrics()
+	gauges["RandomValue"] = RandomValue
 
 	counters := map[string]int64{
 		"PollCount": PollCount,
 	}
 
 	for name, value := range gauges {
-		reportMetric(GaugeMetricType, name, value, client, cfg)
+		url := generateMetricURL(cfg.Addr, GaugeMetricType, name, value)
+		reportSingleMetric(url, client)
 	}
 
 	for name, value := range counters {
-		reportMetric(CounterMetricType, name, value, client, cfg)
+		url := generateMetricURL(cfg.Addr, CounterMetricType, name, value)
+		reportSingleMetric(url, client)
 	}
 }
