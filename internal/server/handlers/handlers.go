@@ -44,21 +44,21 @@ func HandleUpdateMetric(storage storage.MetricStorage) http.HandlerFunc {
 }
 
 func HandleGetMetric(storage storage.MetricStorage) http.HandlerFunc {
+	var (
+		v   interface{}
+		err error
+	)
+
 	return func(w http.ResponseWriter, r *http.Request) {
-		mT := chi.URLParam(r, "type")
-		mN := chi.URLParam(r, "name")
+		metricType := chi.URLParam(r, "type")
+		metricName := chi.URLParam(r, "name")
 
-		var (
-			v   interface{}
-			err error
-		)
-
-		switch mT {
+		switch metricType {
 		case "gauge":
-			v, err = storage.GetGauge(mN)
+			v, err = storage.GetGauge(metricName)
 
 		case "counter":
-			v, err = storage.GetCounter(mN)
+			v, err = storage.GetCounter(metricName)
 
 		default:
 			http.Error(w, "Bad request", http.StatusBadRequest)
@@ -76,9 +76,9 @@ func HandleGetMetric(storage storage.MetricStorage) http.HandlerFunc {
 }
 
 func HandleMetricsHTML(storage storage.MetricStorage) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		metricsString := storage.String()
+	metricsString := storage.String()
 
+	return func(w http.ResponseWriter, r *http.Request) {
 		html := "<html><head><title>Metrics</title>" +
 			"<style>body { background-color: black; color: white; font-size: 1.2rem; line-height: 1.5rem }</style>" +
 			"</head><body><pre>" +
