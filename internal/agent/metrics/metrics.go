@@ -1,8 +1,9 @@
-package reporter
+package metrics
 
 import (
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"runtime"
 
@@ -16,6 +17,11 @@ const (
 	gaugeMetricType   = "gauge"
 	counterMetricType = "counter"
 )
+
+func UpdateMetrics(pollCount *int64, randomValue *float64) {
+	*pollCount++
+	*randomValue = rand.Float64()
+}
 
 func collectMemoryMetrics() map[string]float64 {
 	var m runtime.MemStats

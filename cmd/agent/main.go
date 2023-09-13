@@ -4,8 +4,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/eutjeng/go-musthave-metrics-tpl/internal/agent/reporter"
-	"github.com/eutjeng/go-musthave-metrics-tpl/internal/agent/updater"
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/agent/metrics"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/config"
 	"github.com/go-resty/resty/v2"
 )
@@ -23,13 +22,13 @@ func main() {
 
 	go func() {
 		for {
-			updater.UpdateMetrics(&pollCount, &randomValue)
+			metrics.UpdateMetrics(&pollCount, &randomValue)
 			time.Sleep(cfg.PollInterval)
 		}
 	}()
 
 	for {
-		reporter.ReportMetrics(cfg, client, randomValue, pollCount)
+		metrics.ReportMetrics(cfg, client, randomValue, pollCount)
 		time.Sleep(cfg.ReportInterval)
 	}
 }
