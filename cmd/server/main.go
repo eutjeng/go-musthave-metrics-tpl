@@ -4,26 +4,10 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/go-chi/chi/v5"
-
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/config"
-	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/handlers"
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/router"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/storage"
 )
-
-func setupRouter(storage storage.MetricStorage) *chi.Mux {
-	r := chi.NewRouter()
-
-	r.Get("/", handlers.HandleMetricsHTML(storage))
-	r.Route("/update", func(r chi.Router) {
-		r.Post("/{type}/{name}/{value}", handlers.HandleUpdateMetric(storage))
-	})
-	r.Route("/value", func(r chi.Router) {
-		r.Get("/{type}/{name}", handlers.HandleGetMetric(storage))
-	})
-
-	return r
-}
 
 func main() {
 	cfg, err := config.ParseConfig()
@@ -33,7 +17,7 @@ func main() {
 	}
 
 	storage := storage.NewInMemoryStorage()
-	r := setupRouter(storage)
+	r := router.SetupRouter(storage)
 
 	err = http.ListenAndServe(cfg.Addr, r)
 
