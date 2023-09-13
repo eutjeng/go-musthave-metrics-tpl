@@ -22,6 +22,6 @@ func main() {
 	err = http.ListenAndServe(cfg.Addr, r)
 
 	if err != nil {
-		log.Fatalf("%s:", err)
+		log.Fatalf("Failed to start HTTP server on address %s: %s", cfg.Addr, err)
 	}
 }
