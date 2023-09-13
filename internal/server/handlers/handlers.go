@@ -79,7 +79,9 @@ func HandleMetricsHTML(storage storage.MetricStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		metricsString := storage.String()
 
-		html := "<html><head><title>Metrics</title></head><body><pre>" +
+		html := "<html><head><title>Metrics</title>" +
+			"<style>body { background-color: black; color: white; font-size: 1.2rem; line-height: 1.5rem }</style>" +
+			"</head><body><pre>" +
 			html.EscapeString(metricsString) +
 			"</pre></body></html>"
 

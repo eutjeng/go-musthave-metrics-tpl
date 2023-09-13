@@ -3,6 +3,7 @@ package utils
 import (
 	"strconv"
 	"strings"
+	"time"
 )
 
 func SplitPath(path string) []string {
@@ -15,4 +16,21 @@ func ParseFloat(s string) (float64, error) {
 
 func ParseInt(s string) (int64, error) {
 	return strconv.ParseInt(s, 10, 64)
+}
+
+func ConvertToSec(s string) (time.Duration, error) {
+	sec, err := ParseInt(s)
+
+	if err != nil {
+		return 0, err
+	}
+
+	return time.Duration(sec) * time.Second, nil
+}
+
+func EnsureHTTPScheme(addr string) string {
+	if strings.HasPrefix(addr, "http://") || strings.HasPrefix(addr, "https://") {
+		return addr
+	}
+	return "http://" + addr
 }
