@@ -3,7 +3,6 @@ package utils
 import (
 	"strconv"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -63,40 +62,6 @@ func TestParseInt(t *testing.T) {
 		result, err := ParseInt(tc.s)
 		assert.Equal(t, tc.expected, result)
 		assert.Equal(t, tc.err, err)
-	}
-}
-
-func TestConvertToSec(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected time.Duration
-		hasError bool
-	}{
-		{"10", 10 * time.Second, false},
-		{"0", 0, false},
-		{"-5", -5 * time.Second, false},
-		{"abc", 0, true}, // ожидается ошибка
-		{"", 0, true},    // ожидается ошибка
-	}
-
-	for _, test := range tests {
-		result, err := ConvertToSec(test.input)
-
-		if test.hasError {
-			if err == nil {
-				t.Errorf("ConvertToSec(%s) expected error, got nil", test.input)
-			}
-			continue
-		}
-
-		if err != nil {
-			t.Errorf("ConvertToSec(%s) got error: %v", test.input, err)
-			continue
-		}
-
-		if result != test.expected {
-			t.Errorf("ConvertToSec(%s) = %v, want %v", test.input, result, test.expected)
-		}
 	}
 }
 

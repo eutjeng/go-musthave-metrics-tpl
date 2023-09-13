@@ -13,23 +13,23 @@ import (
 )
 
 func HandleUpdateMetric(storage storage.MetricStorage) http.HandlerFunc {
+	var err error
+
 	return func(w http.ResponseWriter, r *http.Request) {
-		mT := chi.URLParam(r, "type")
-		mN := chi.URLParam(r, "name")
-		mV := chi.URLParam(r, "value")
+		metricType := chi.URLParam(r, "type")
+		metricName := chi.URLParam(r, "name")
+		metricValue := chi.URLParam(r, "value")
 
-		var err error
-
-		switch mT {
+		switch metricType {
 		case "gauge":
-			if v, e := utils.ParseFloat(mV); e == nil {
-				err = storage.UpdateGauge(mN, v)
+			if v, e := utils.ParseFloat(metricValue); e == nil {
+				err = storage.UpdateGauge(metricName, v)
 			} else {
 				http.Error(w, "Invalid value type for gauge", http.StatusBadRequest)
 			}
 		case "counter":
-			if v, e := utils.ParseInt(mV); e == nil {
-				err = storage.UpdateCounter(mN, v)
+			if v, e := utils.ParseInt(metricValue); e == nil {
+				err = storage.UpdateCounter(metricName, v)
 			} else {
 				http.Error(w, "Invalid value type for counter", http.StatusBadRequest)
 			}

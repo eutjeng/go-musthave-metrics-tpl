@@ -4,39 +4,24 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/go-chi/chi/v5"
-
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/config"
-	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/handlers"
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/router"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/storage"
 )
 
-func setupRouter(storage storage.MetricStorage) *chi.Mux {
-	r := chi.NewRouter()
-
-	r.Get("/", handlers.HandleMetricsHTML(storage))
-	r.Route("/update", func(r chi.Router) {
-		r.Post("/{type}/{name}/{value}", handlers.HandleUpdateMetric(storage))
-	})
-	r.Route("/value", func(r chi.Router) {
-		r.Get("/{type}/{name}", handlers.HandleGetMetric(storage))
-	})
-
-	return r
-}
-
-func checkError(err error, message string) {
-	if err != nil {
-		log.Fatalf("%s: %v", message, err)
-	}
-}
-
 func main() {
-	config.ParseFlags()
+	cfg, err := config.ParseConfig()
+
+	if err != nil {
+		log.Fatalf("Error while parsing config: %s", err)
+	}
+
 	storage := storage.NewInMemoryStorage()
-	r := setupRouter(storage)
+	r := router.SetupRouter(storage)
 
-	err := http.ListenAndServe(config.FlagRunAddr, r)
+	err = http.ListenAndServe(cfg.Addr, r)
 
-	checkError(err, "Failed to start server")
+	if err != nil {
+		log.Fatalf("Failed to start HTTP server on address %s: %s", cfg.Addr, err)
+	}
 }
