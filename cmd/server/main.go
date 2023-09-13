@@ -30,7 +30,6 @@ func main() {
 
 	if err != nil {
 		log.Fatalf("Error while parsing config: %s", err)
-		return
 	}
 
 	storage := storage.NewInMemoryStorage()
