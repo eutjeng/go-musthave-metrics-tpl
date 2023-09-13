@@ -1,31 +1,34 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
-	"time"
 
-	"github.com/eutjeng/go-musthave-metrics-tpl/internal/handlers"
-	"github.com/eutjeng/go-musthave-metrics-tpl/internal/storage"
+	"github.com/go-chi/chi/v5"
+
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/handlers"
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/storage"
 )
 
 func main() {
-
 	var storage storage.MetricStorage = storage.NewInMemoryStorage()
-	mux := http.NewServeMux()
+	r := chi.NewRouter()
 
-	mux.HandleFunc("/update/", handlers.HandleUpdateMetric(storage))
+	// HTML route for metrics
+	r.Get("/", handlers.HandleMetricsHTML(storage))
 
-	go func() {
-		for {
-			fmt.Print("\033[H\033[2J")
-			fmt.Println(storage)
-			time.Sleep(1 * time.Second)
-		}
-	}()
+	// Group metric update routes
+	r.Route("/update", func(r chi.Router) {
+		r.Post("/{type}/{name}/{value}", handlers.HandleUpdateMetric(storage))
+	})
 
-	err := http.ListenAndServe(":8080", mux)
+	// Group value retrieval routes
+	r.Route("/value", func(r chi.Router) {
+		r.Get("/{type}/{name}", handlers.HandleGetMetric(storage))
+	})
+
+	err := http.ListenAndServe("localhost:8080", r)
+
 	if err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
