@@ -39,7 +39,10 @@ func HandleUpdateMetric(storage storage.MetricStorage) http.HandlerFunc {
 
 		if err != nil {
 			http.Error(w, "Not found", http.StatusNotFound)
+			return
 		}
+
+		w.WriteHeader(http.StatusOK)
 	}
 }
 
@@ -69,6 +72,7 @@ func HandleGetMetric(storage storage.MetricStorage) http.HandlerFunc {
 			return
 		}
 
+		w.WriteHeader(http.StatusOK)
 		if _, err := io.WriteString(w, fmt.Sprint(v)); err != nil {
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		}
@@ -85,6 +89,7 @@ func HandleMetricsHTML(storage storage.MetricStorage) http.HandlerFunc {
 			"</pre></body></html>"
 
 		w.Header().Set("Content-Type", "text/html")
+		w.WriteHeader(http.StatusOK)
 		if _, err := w.Write([]byte(html)); err != nil {
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		}
