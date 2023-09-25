@@ -1,70 +1,96 @@
 package handlers
 
 import (
-	"fmt"
+	"encoding/json"
 	"html"
-	"io"
 	"net/http"
 
-	"github.com/go-chi/chi/v5"
+	"go.uber.org/zap"
 
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/constants"
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/models"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/storage"
-	"github.com/eutjeng/go-musthave-metrics-tpl/internal/utils"
 )
 
-func HandleUpdateMetric(storage storage.MetricStorage) http.HandlerFunc {
+func HandleUpdateMetric(sugar *zap.SugaredLogger, storage storage.MetricStorage) http.HandlerFunc {
 	var err error
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		metricType := chi.URLParam(r, "type")
-		metricName := chi.URLParam(r, "name")
-		metricValue := chi.URLParam(r, "value")
-
-		switch metricType {
-		case "gauge":
-			if v, e := utils.ParseFloat(metricValue); e == nil {
-				err = storage.UpdateGauge(metricName, v)
-			} else {
-				http.Error(w, "Invalid value type for gauge", http.StatusBadRequest)
-			}
-		case "counter":
-			if v, e := utils.ParseInt(metricValue); e == nil {
-				err = storage.UpdateCounter(metricName, v)
-			} else {
-				http.Error(w, "Invalid value type for counter", http.StatusBadRequest)
-			}
-		default:
-			http.Error(w, "Invalid metric type", http.StatusBadRequest)
-		}
-
-		if err != nil {
-			http.Error(w, "Not found", http.StatusNotFound)
+		if r.Method != http.MethodPost {
+			sugar.Errorw("Got request with bad method", zap.String("method", r.Method))
+			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
 
+		dec := json.NewDecoder(r.Body)
+		var req models.Metrics
+
+		if err := dec.Decode(&req); err != nil {
+			sugar.Errorw("Cannot decode request JSON body", err)
+			http.Error(w, "Invalid JSON", http.StatusBadRequest)
+			return
+		}
+
+		switch req.MType {
+		case constants.MetricTypeGauge:
+			if req.Value != nil {
+				err = storage.UpdateGauge(req.ID, *req.Value)
+			} else {
+				http.Error(w, "Missing 'value' for gauge", http.StatusBadRequest)
+			}
+		case constants.MetricTypeCounter:
+			if req.Delta != nil {
+				err = storage.UpdateCounter(req.ID, *req.Delta)
+			} else {
+				http.Error(w, "Missing 'delta' for counter", http.StatusBadRequest)
+				return
+			}
+		default:
+			http.Error(w, "Invalid metric type", http.StatusBadRequest)
+			return
+		}
+
+		if err != nil {
+			http.Error(w, "Failed to update metric", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
+
+		if err := json.NewEncoder(w).Encode(req); err != nil {
+			sugar.Errorw("Cannot encode response JSON body", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		}
 	}
 }
 
-func HandleGetMetric(storage storage.MetricStorage) http.HandlerFunc {
+func HandleGetMetric(sugar *zap.SugaredLogger, storage storage.MetricStorage) http.HandlerFunc {
 	var (
 		v   interface{}
 		err error
 	)
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		metricType := chi.URLParam(r, "type")
-		metricName := chi.URLParam(r, "name")
+		dec := json.NewDecoder(r.Body)
+		var req models.MetricsQuery
 
-		switch metricType {
-		case "gauge":
-			v, err = storage.GetGauge(metricName)
+		if err := dec.Decode(&req); err != nil {
+			sugar.Errorw("Cannot decode request JSON body", err)
+			http.Error(w, "Invalid JSON", http.StatusBadRequest)
+			return
+		}
 
-		case "counter":
-			v, err = storage.GetCounter(metricName)
+		switch req.MType {
+		case constants.MetricTypeGauge:
+			v, err = storage.GetGauge(req.ID)
+
+		case constants.MetricTypeCounter:
+			v, err = storage.GetCounter(req.ID)
 
 		default:
-			http.Error(w, "Bad request", http.StatusBadRequest)
+			http.Error(w, "Invalid metric type", http.StatusBadRequest)
+			return
 		}
 
 		if err != nil {
@@ -72,8 +98,34 @@ func HandleGetMetric(storage storage.MetricStorage) http.HandlerFunc {
 			return
 		}
 
+		resp := models.Metrics{
+			ID:    req.ID,
+			MType: req.MType,
+		}
+
+		if req.MType == constants.MetricTypeGauge {
+			if value, ok := v.(float64); ok {
+				resp.Value = &value
+			} else {
+				sugar.Errorw("Unexpected type for gauge value", "received", v)
+				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+				return
+			}
+		} else {
+			if value, ok := v.(int64); ok {
+				resp.Delta = &value
+			} else {
+				sugar.Errorw("Unexpected type for counter delta", "received", v)
+				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+				return
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		if _, err := io.WriteString(w, fmt.Sprint(v)); err != nil {
+
+		if err := json.NewEncoder(w).Encode(resp); err != nil {
+			sugar.Errorw("Cannot encode response JSON body", err)
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		}
 	}

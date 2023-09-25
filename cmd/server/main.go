@@ -16,7 +16,7 @@ func main() {
 		log.Fatalf("Error while parsing config: %s", err)
 	}
 
-	sugar, syncFunc, err := logger.InitLogger()
+	sugar, syncFunc, err := logger.InitLogger(cfg)
 	if err != nil {
 		log.Fatalf("Failed to initialize logger: %s", err)
 	}

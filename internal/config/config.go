@@ -11,6 +11,7 @@ import (
 
 type Config struct {
 	Addr           string
+	Environment    string
 	ReportInterval time.Duration
 	PollInterval   time.Duration
 }
@@ -19,6 +20,7 @@ const (
 	defaultAddr           = ":8080"
 	defaultReportInterval = 10 // in seconds
 	defaultPollInterval   = 2  // in seconds
+	defaultEnvironment    = "development"
 )
 
 func ParseConfig() (*Config, error) {
@@ -38,6 +40,7 @@ func loadFromEnv(cfg *Config) error {
 		Addr           string `env:"ADDRESS"`
 		ReportInterval int64  `env:"REPORT_INTERVAL"`
 		PollInterval   int64  `env:"POLL_INTERVAL"`
+		Environment    string `env:"ENVIRONMENT"`
 	}{}
 
 	if err := env.Parse(&tempCfg); err != nil {
@@ -53,6 +56,9 @@ func loadFromEnv(cfg *Config) error {
 	if tempCfg.PollInterval > 0 {
 		cfg.PollInterval = time.Duration(tempCfg.PollInterval) * time.Second
 	}
+	if tempCfg.Environment != "" {
+		cfg.Environment = tempCfg.Environment
+	}
 
 	return nil
 }
@@ -64,6 +70,7 @@ func loadFromFlags(cfg *Config) error {
 	addr := flagSet.String("a", defaultAddr, "address and port to run server")
 	reportInterval := flagSet.Int64("r", defaultReportInterval, "frequency of sending metrics to the server (seconds)")
 	pollInterval := flagSet.Int64("p", defaultPollInterval, "frequency of metrics polling from the runtime package (seconds)")
+	env := flagSet.String("e", defaultEnvironment, "application environment (development|production)")
 
 	if err := flagSet.Parse(os.Args[1:]); err != nil {
 		return fmt.Errorf("failed to parse flags: %w", err)
@@ -72,6 +79,7 @@ func loadFromFlags(cfg *Config) error {
 	cfg.Addr = *addr
 	cfg.ReportInterval = time.Duration(*reportInterval) * time.Second
 	cfg.PollInterval = time.Duration(*pollInterval) * time.Second
+	cfg.Environment = *env
 
 	return nil
 }

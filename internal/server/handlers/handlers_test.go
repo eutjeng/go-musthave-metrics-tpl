@@ -2,103 +2,90 @@ package handlers_test
 
 import (
 	"io"
+	"log"
+
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/config"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/handlers"
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/logger"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/storage"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHandleUpdateAndGetMetrics(t *testing.T) {
 	storage := storage.NewInMemoryStorage()
 	r := chi.NewRouter()
 
-	r.Post("/update/{type}/{name}/{value}", handlers.HandleUpdateMetric(storage))
-	r.Get("/value/{type}/{name}", handlers.HandleGetMetric(storage))
+	cfg, err := config.ParseConfig()
+	if err != nil {
+		log.Fatalf("Error while parsing config: %s", err)
+	}
+
+	sugar, _, _ := logger.InitLogger(cfg)
+
+	r.HandleFunc("/update", handlers.HandleUpdateMetric(sugar, storage))
+	r.HandleFunc("/value", handlers.HandleGetMetric(sugar, storage))
 
 	ts := httptest.NewServer(r)
 	defer ts.Close()
 
 	testCases := []struct {
 		name           string
-		updateURL      string
-		getURL         string
+		updateBody     string
+		getBody        string
 		expectedStatus int
 		expectedValue  string
-		skipGet        bool
 	}{
 		{
 			name:           "Valid gauge",
-			updateURL:      "/update/gauge/someTest/42.2",
-			getURL:         "/value/gauge/someTest",
+			updateBody:     `{"id":"someTest","type":"gauge","value":42.2}`,
+			getBody:        `{"id":"someTest","type":"gauge"}`,
 			expectedStatus: http.StatusOK,
-			expectedValue:  "42.2",
+			expectedValue:  `{"id":"someTest","type":"gauge","value":42.2}`,
 		},
 		{
 			name:           "Valid counter",
-			updateURL:      "/update/counter/someTest/42",
-			getURL:         "/value/counter/someTest",
+			updateBody:     `{"id":"someTest","type":"counter","delta":42}`,
+			getBody:        `{"id":"someTest","type":"counter"}`,
 			expectedStatus: http.StatusOK,
-			expectedValue:  "42",
-		},
-
-		{
-			name:           "Invalid update path",
-			updateURL:      "/update/gauge/",
-			expectedStatus: http.StatusNotFound,
-			skipGet:        true,
+			expectedValue:  `{"id":"someTest","type":"counter","delta":42}`,
 		},
 		{
 			name:           "Invalid update counter type",
-			updateURL:      "/update/counter/testCounter/none",
+			updateBody:     `{"id":"someTest","type":"counter","value": "invalid"}`,
 			expectedStatus: http.StatusBadRequest,
-			skipGet:        true,
 		},
 		{
 			name:           "Invalid update metric type",
-			updateURL:      "/update/invalidType/temperature/23.4",
+			updateBody:     `{"id":"someTest","type":"invalidType","value": "23.4"}`,
 			expectedStatus: http.StatusBadRequest,
-			skipGet:        true,
-		},
-		{
-			name:           "Get non-existing gauge",
-			getURL:         "/value/gauge/nonExisting",
-			expectedStatus: http.StatusNotFound,
-		},
-		{
-			name:           "Get non-existing counter",
-			getURL:         "/value/counter/nonExisting",
-			expectedStatus: http.StatusNotFound,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			if tc.updateURL != "" {
-				updateReq, err := http.NewRequest("POST", ts.URL+tc.updateURL, nil)
-				assert.NoError(t, err)
-				updateResp, err := ts.Client().Do(updateReq)
-				assert.NoError(t, err)
-				updateResp.Body.Close()
-				assert.Equal(t, tc.expectedStatus, updateResp.StatusCode)
-			}
+			// POST request for update
+			updateResp, err := http.Post(ts.URL+"/update", "application/json", strings.NewReader(tc.updateBody))
+			require.NoError(t, err)
+			require.Equal(t, tc.expectedStatus, updateResp.StatusCode)
+			updateResp.Body.Close()
 
-			if !tc.skipGet {
-				getReq, err := http.NewRequest("GET", ts.URL+tc.getURL, nil)
-				assert.NoError(t, err)
-				getResp, err := ts.Client().Do(getReq)
-				assert.NoError(t, err)
-				defer getResp.Body.Close()
+			// POST request for get
+			getResp, err := http.Post(ts.URL+"/value", "application/json", strings.NewReader(tc.getBody))
+			require.NoError(t, err)
+			require.Equal(t, tc.expectedStatus, getResp.StatusCode)
 
-				body, _ := io.ReadAll(getResp.Body)
-				assert.Equal(t, tc.expectedStatus, getResp.StatusCode)
-
-				if tc.expectedValue != "" {
-					assert.Equal(t, tc.expectedValue, string(body))
-				}
+			if tc.expectedValue != "" {
+				bodyBytes, err := io.ReadAll(getResp.Body)
+				require.NoError(t, err)
+				getResp.Body.Close()
+				require.JSONEq(t, tc.expectedValue, string(bodyBytes))
 			}
 		})
 	}
