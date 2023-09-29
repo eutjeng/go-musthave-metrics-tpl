@@ -4,44 +4,84 @@ import (
 	"encoding/json"
 	"fmt"
 	"html"
+	"io"
 	"net/http"
+	"strings"
 
 	"go.uber.org/zap"
 
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/constants"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/models"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/storage"
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/utils"
+	"github.com/go-chi/chi/v5"
 )
 
-func HandleUpdateMetric(sugar *zap.SugaredLogger, storage storage.MetricStorage) http.HandlerFunc {
-	var err error
+func extractMetrics(r *http.Request) (string, string, *float64, *int64, error) {
+	contentType := r.Header.Get("Content-Type")
 
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			sugar.Errorw("Got request with bad method", zap.String("method", r.Method))
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			return
-		}
+	var metricType string
+	var metricName string
+	var metricValue *float64
+	var metricDelta *int64
 
+	if strings.TrimSpace(contentType) == constants.ApplicationJSON {
 		dec := json.NewDecoder(r.Body)
 		var req models.Metrics
 
-		if decodeErr := dec.Decode(&req); decodeErr != nil {
-			sugar.Errorw("Cannot decode request JSON body", decodeErr)
-			http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		if err := dec.Decode(&req); err != nil {
+			return "", "", nil, nil, err
+		}
+
+		metricType = req.MType
+		metricName = req.ID
+		metricValue = req.Value
+		metricDelta = req.Delta
+
+	} else {
+		metricType = chi.URLParam(r, "type")
+		metricName = chi.URLParam(r, "name")
+
+		valueStr := chi.URLParam(r, "value")
+
+		switch metricType {
+		case constants.MetricTypeGauge:
+			if value, err := utils.ParseFloat(valueStr); err == nil {
+				metricValue = &value
+				metricDelta = nil
+			}
+		case constants.MetricTypeCounter:
+			if delta, err := utils.ParseInt(valueStr); err == nil {
+				metricValue = nil
+				metricDelta = &delta
+			}
+		}
+	}
+
+	return metricType, metricName, metricValue, metricDelta, nil
+}
+
+func HandleUpdateMetric(sugar *zap.SugaredLogger, storage storage.MetricStorage) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		metricType, metricName, metricValue, metricDelta, err := extractMetrics(r)
+
+		if err != nil {
+			sugar.Errorw("Error when extracting metrics", err)
+			http.Error(w, "Bad Request", http.StatusBadRequest)
 			return
 		}
 
-		switch req.MType {
+		switch metricType {
 		case constants.MetricTypeGauge:
-			if req.Value != nil {
-				err = storage.UpdateGauge(req.ID, *req.Value)
+			if metricValue != nil {
+				err = storage.UpdateGauge(metricName, *metricValue)
 			} else {
 				http.Error(w, "Missing 'value' for gauge", http.StatusBadRequest)
+				return
 			}
 		case constants.MetricTypeCounter:
-			if req.Delta != nil {
-				err = storage.UpdateCounter(req.ID, *req.Delta)
+			if metricDelta != nil {
+				err = storage.UpdateCounter(metricName, *metricDelta)
 			} else {
 				http.Error(w, "Missing 'delta' for counter", http.StatusBadRequest)
 				return
@@ -56,38 +96,45 @@ func HandleUpdateMetric(sugar *zap.SugaredLogger, storage storage.MetricStorage)
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
+		if r.Header.Get("Content-Type") == constants.ApplicationJSON {
+			response := map[string]interface{}{
+				"type":  metricType,
+				"name":  metricName,
+				"value": metricValue,
+				"delta": metricDelta,
+			}
 
-		if err := json.NewEncoder(w).Encode(req); err != nil {
-			sugar.Errorw("Cannot encode response JSON body", err)
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			w.Header().Set("Content-Type", constants.ApplicationJSON)
+			w.WriteHeader(http.StatusOK)
+
+			if err := json.NewEncoder(w).Encode(response); err != nil {
+				sugar.Errorw("Cannot encode response JSON body", err)
+				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			}
+		} else {
+			w.WriteHeader(http.StatusOK)
 		}
 	}
 }
 
 func HandleGetMetric(sugar *zap.SugaredLogger, storage storage.MetricStorage) http.HandlerFunc {
-	var (
-		v   interface{}
-		err error
-	)
+	var v interface{}
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		dec := json.NewDecoder(r.Body)
-		var req models.MetricsQuery
+		metricType, metricName, _, _, err := extractMetrics(r)
 
-		if decodeErr := dec.Decode(&req); decodeErr != nil {
-			sugar.Errorw("Cannot decode request JSON body", decodeErr)
-			http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		if err != nil {
+			sugar.Errorw("Error when extracting metrics", err)
+			http.Error(w, "Bad Request", http.StatusBadRequest)
 			return
 		}
 
-		switch req.MType {
+		switch metricType {
 		case constants.MetricTypeGauge:
-			v, err = storage.GetGauge(req.ID)
+			v, err = storage.GetGauge(metricName)
 
 		case constants.MetricTypeCounter:
-			v, err = storage.GetCounter(req.ID)
+			v, err = storage.GetCounter(metricName)
 
 		default:
 			http.Error(w, "Invalid metric type", http.StatusBadRequest)
@@ -99,35 +146,41 @@ func HandleGetMetric(sugar *zap.SugaredLogger, storage storage.MetricStorage) ht
 			return
 		}
 
-		resp := models.Metrics{
-			ID:    req.ID,
-			MType: req.MType,
-		}
+		if r.Header.Get("Content-Type") == constants.ApplicationJSON {
+			resp := models.Metrics{
+				ID:    metricName,
+				MType: metricType,
+			}
 
-		if req.MType == constants.MetricTypeGauge {
-			if value, ok := v.(float64); ok {
-				resp.Value = &value
+			if metricType == constants.MetricTypeGauge {
+				if value, ok := v.(float64); ok {
+					resp.Value = &value
+				} else {
+					sugar.Errorw("Unexpected type for gauge value", "received", v)
+					http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+					return
+				}
 			} else {
-				sugar.Errorw("Unexpected type for gauge value", "received", v)
+				if value, ok := v.(int64); ok {
+					resp.Delta = &value
+				} else {
+					sugar.Errorw("Unexpected type for counter delta", "received", v)
+					http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+					return
+				}
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			if err := json.NewEncoder(w).Encode(resp); err != nil {
+				sugar.Errorw("Cannot encode response JSON body", err)
 				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-				return
 			}
 		} else {
-			if value, ok := v.(int64); ok {
-				resp.Delta = &value
-			} else {
-				sugar.Errorw("Unexpected type for counter delta", "received", v)
+			w.WriteHeader(http.StatusOK)
+			if _, err := io.WriteString(w, fmt.Sprint(v)); err != nil {
 				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-				return
 			}
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-
-		if err := json.NewEncoder(w).Encode(resp); err != nil {
-			sugar.Errorw("Cannot encode response JSON body", err)
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		}
 	}
 }

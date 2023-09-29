@@ -2,7 +2,7 @@ package handlers_test
 
 import (
 	"io"
-	"log"
+	"time"
 
 	"net/http"
 	"net/http/httptest"
@@ -22,12 +22,14 @@ func TestHandleUpdateAndGetMetrics(t *testing.T) {
 	storage := storage.NewInMemoryStorage()
 	r := chi.NewRouter()
 
-	cfg, err := config.ParseConfig()
-	if err != nil {
-		log.Fatalf("Error while parsing config: %s", err)
+	mockConfig := &config.Config{
+		Addr:           ":8080",
+		Environment:    "test",
+		ReportInterval: time.Second * 10,
+		PollInterval:   time.Second * 2,
 	}
 
-	sugar, _, _ := logger.InitLogger(cfg)
+	sugar, _, _ := logger.InitLogger(mockConfig)
 
 	r.HandleFunc("/update", handlers.HandleUpdateMetric(sugar, storage))
 	r.HandleFunc("/value", handlers.HandleGetMetric(sugar, storage))

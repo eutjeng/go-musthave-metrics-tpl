@@ -6,9 +6,12 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/config"
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/constants"
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/models"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -44,21 +47,24 @@ func WithLogging(sugar *zap.SugaredLogger) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
 
-			bodyBytes, err := io.ReadAll(r.Body)
-			if err != nil {
-				sugar.Errorw("Cannot read request body", "err", err)
-			}
+			var formattedBody []byte
+			if r.Header.Get("Content-Type") == constants.ApplicationJSON {
+				bodyBytes, err := io.ReadAll(r.Body)
+				if err != nil {
+					sugar.Errorw("Cannot read request body", "err", err)
+				}
 
-			r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+				r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 
-			var bodyData interface{}
-			if err := json.Unmarshal(bodyBytes, &bodyData); err != nil {
-				sugar.Errorw("Cannot unmarshal request body", "err", err)
-			}
+				var bodyData models.Metrics
+				if err := json.Unmarshal(bodyBytes, &bodyData); err != nil {
+					sugar.Errorw("Cannot unmarshal request body", "err", err)
+				}
 
-			formattedBody, err := json.Marshal(bodyData)
-			if err != nil {
-				sugar.Errorw("Cannot marshal request body", "err", err)
+				formattedBody, err = json.Marshal(bodyData)
+				if err != nil {
+					sugar.Errorw("Cannot marshal request body", "err", err)
+				}
 			}
 
 			responseData := &responseData{
@@ -104,9 +110,20 @@ func InitLogger(cfg *config.Config) (*zap.SugaredLogger, func(), error) {
 		zapLogger, err = zap.NewProduction()
 
 	} else {
-		config := zap.NewDevelopmentConfig()
-		config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
-		zapLogger, err = config.Build()
+		encoderConfig := zap.NewDevelopmentEncoderConfig()
+		encoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+		encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+		encoderConfig.EncodeDuration = zapcore.StringDurationEncoder
+
+		encoder := zapcore.NewConsoleEncoder(encoderConfig)
+
+		core := zapcore.NewCore(
+			encoder,
+			zapcore.AddSync(os.Stdout),
+			zap.NewAtomicLevelAt(zapcore.DebugLevel),
+		)
+
+		zapLogger = zap.New(core)
 	}
 
 	if err != nil {

@@ -15,9 +15,11 @@ func SetupRouter(sugar *zap.SugaredLogger, storage storage.MetricStorage) *chi.M
 
 	r.Get("/", handlers.HandleMetricsHTML(storage))
 	r.Route("/update", func(r chi.Router) {
+		r.Post("/{type}/{name}/{value}", handlers.HandleUpdateMetric(sugar, storage))
 		r.Post("/", handlers.HandleUpdateMetric(sugar, storage))
 	})
 	r.Route("/value", func(r chi.Router) {
+		r.Get("/{type}/{name}", handlers.HandleGetMetric(sugar, storage))
 		r.Post("/", handlers.HandleGetMetric(sugar, storage))
 	})
 
