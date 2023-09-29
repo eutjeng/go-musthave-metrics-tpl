@@ -14,13 +14,19 @@ type Config struct {
 	Environment    string
 	ReportInterval time.Duration
 	PollInterval   time.Duration
+	ReadTimeout    time.Duration
+	WriteTimeout   time.Duration
+	IdleTimeout    time.Duration
 }
 
 const (
 	defaultAddr           = ":8080"
+	defaultEnvironment    = "development"
 	defaultReportInterval = 10 // in seconds
 	defaultPollInterval   = 2  // in seconds
-	defaultEnvironment    = "development"
+	defaultReadTimeout    = 5  // in seconds
+	defaultWriteTimeout   = 10 // in seconds
+	defaultIdleTimeout    = 15 // in seconds
 )
 
 func ParseConfig() (*Config, error) {
@@ -38,9 +44,12 @@ func ParseConfig() (*Config, error) {
 func loadFromEnv(cfg *Config) error {
 	tempCfg := struct {
 		Addr           string `env:"ADDRESS"`
+		Environment    string `env:"ENVIRONMENT"`
 		ReportInterval int64  `env:"REPORT_INTERVAL"`
 		PollInterval   int64  `env:"POLL_INTERVAL"`
-		Environment    string `env:"ENVIRONMENT"`
+		ReadTimeout    int64  `env:"READ_TIMEOUT"`
+		WriteTimeout   int64  `env:"WRITE_TIMEOUT"`
+		IdleTimeout    int64  `env:"IDLE_TIMEOUT"`
 	}{}
 
 	if err := env.Parse(&tempCfg); err != nil {
@@ -60,6 +69,16 @@ func loadFromEnv(cfg *Config) error {
 		cfg.Environment = tempCfg.Environment
 	}
 
+	if tempCfg.ReadTimeout > 0 {
+		cfg.ReadTimeout = time.Duration(tempCfg.ReadTimeout) * time.Second
+	}
+	if tempCfg.WriteTimeout > 0 {
+		cfg.WriteTimeout = time.Duration(tempCfg.WriteTimeout) * time.Second
+	}
+	if tempCfg.IdleTimeout > 0 {
+		cfg.IdleTimeout = time.Duration(tempCfg.IdleTimeout) * time.Second
+	}
+
 	return nil
 }
 
@@ -71,6 +90,9 @@ func loadFromFlags(cfg *Config) error {
 	reportInterval := flagSet.Int64("r", defaultReportInterval, "frequency of sending metrics to the server (seconds)")
 	pollInterval := flagSet.Int64("p", defaultPollInterval, "frequency of metrics polling from the runtime package (seconds)")
 	env := flagSet.String("e", defaultEnvironment, "application environment (development|production)")
+	readTimeout := flagSet.Int64("rt", defaultReadTimeout, "read timeout in seconds")
+	writeTimeout := flagSet.Int64("wt", defaultWriteTimeout, "write timeout in seconds")
+	idleTimeout := flagSet.Int64("it", defaultIdleTimeout, "idle timeout in seconds")
 
 	if err := flagSet.Parse(os.Args[1:]); err != nil {
 		return fmt.Errorf("failed to parse flags: %w", err)
@@ -80,6 +102,9 @@ func loadFromFlags(cfg *Config) error {
 	cfg.ReportInterval = time.Duration(*reportInterval) * time.Second
 	cfg.PollInterval = time.Duration(*pollInterval) * time.Second
 	cfg.Environment = *env
+	cfg.ReadTimeout = time.Duration(*readTimeout) * time.Second
+	cfg.WriteTimeout = time.Duration(*writeTimeout) * time.Second
+	cfg.IdleTimeout = time.Duration(*idleTimeout) * time.Second
 
 	return nil
 }
