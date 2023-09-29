@@ -35,9 +35,9 @@ type MetricStorage interface {
 // InMemoryStorage is an implementation of the MetricStorage interface
 // that stores the metrics in memory
 type InMemoryStorage struct {
-	mu      sync.RWMutex
-	counter map[string]int64
 	gauges  map[string]float64
+	counter map[string]int64
+	mu      sync.RWMutex
 }
 
 func NewInMemoryStorage() *InMemoryStorage {
