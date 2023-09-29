@@ -39,8 +39,8 @@ func TestHandleUpdateAndGetMetrics(t *testing.T) {
 		name           string
 		updateBody     string
 		getBody        string
-		expectedStatus int
 		expectedValue  string
+		expectedStatus int
 	}{
 		{
 			name:           "Valid gauge",

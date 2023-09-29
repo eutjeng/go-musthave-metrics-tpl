@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"html"
 	"net/http"
 
@@ -25,8 +26,8 @@ func HandleUpdateMetric(sugar *zap.SugaredLogger, storage storage.MetricStorage)
 		dec := json.NewDecoder(r.Body)
 		var req models.Metrics
 
-		if err := dec.Decode(&req); err != nil {
-			sugar.Errorw("Cannot decode request JSON body", err)
+		if decodeErr := dec.Decode(&req); decodeErr != nil {
+			sugar.Errorw("Cannot decode request JSON body", decodeErr)
 			http.Error(w, "Invalid JSON", http.StatusBadRequest)
 			return
 		}
@@ -75,8 +76,8 @@ func HandleGetMetric(sugar *zap.SugaredLogger, storage storage.MetricStorage) ht
 		dec := json.NewDecoder(r.Body)
 		var req models.MetricsQuery
 
-		if err := dec.Decode(&req); err != nil {
-			sugar.Errorw("Cannot decode request JSON body", err)
+		if decodeErr := dec.Decode(&req); decodeErr != nil {
+			sugar.Errorw("Cannot decode request JSON body", decodeErr)
 			http.Error(w, "Invalid JSON", http.StatusBadRequest)
 			return
 		}
@@ -131,7 +132,7 @@ func HandleGetMetric(sugar *zap.SugaredLogger, storage storage.MetricStorage) ht
 	}
 }
 
-func HandleMetricsHTML(storage storage.MetricStorage) http.HandlerFunc {
+func HandleMetricsHTML(storage fmt.Stringer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		metricsString := storage.String()
 		html := "<html><head><title>Metrics</title>" +
