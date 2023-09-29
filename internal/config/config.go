@@ -10,17 +10,6 @@ import (
 	"github.com/caarlos0/env/v6"
 )
 
-type Duration time.Duration
-
-func (d *Duration) Set(value string) error {
-	duration, err := time.ParseDuration(value)
-	if err != nil {
-		return err
-	}
-	*d = Duration(duration)
-	return nil
-}
-
 type Config struct {
 	Addr           string        `env:"ADDRESS"`
 	Environment    string        `env:"ENVIRONMENT"`
