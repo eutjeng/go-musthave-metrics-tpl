@@ -152,7 +152,8 @@ func HandleGetMetric(sugar *zap.SugaredLogger, storage storage.MetricStorage) ht
 				MType: metricType,
 			}
 
-			if metricType == constants.MetricTypeGauge {
+			switch metricType {
+			case constants.MetricTypeGauge:
 				if value, ok := v.(float64); ok {
 					resp.Value = &value
 				} else {
@@ -160,7 +161,8 @@ func HandleGetMetric(sugar *zap.SugaredLogger, storage storage.MetricStorage) ht
 					http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 					return
 				}
-			} else {
+
+			case constants.MetricTypeCounter:
 				if value, ok := v.(int64); ok {
 					resp.Delta = &value
 				} else {
@@ -176,11 +178,13 @@ func HandleGetMetric(sugar *zap.SugaredLogger, storage storage.MetricStorage) ht
 				sugar.Errorw("Cannot encode response JSON body", err)
 				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			}
-		} else {
-			w.WriteHeader(http.StatusOK)
-			if _, err := io.WriteString(w, fmt.Sprint(v)); err != nil {
-				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-			}
+
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		if _, err := io.WriteString(w, fmt.Sprint(v)); err != nil {
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		}
 	}
 }
