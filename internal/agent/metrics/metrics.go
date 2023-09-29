@@ -80,13 +80,13 @@ func generateMetricURL(addr string) string {
 	return fmt.Sprintf(urlTemplate, utils.EnsureHTTPScheme(addr))
 }
 
-func ReportMetrics(sugar *zap.SugaredLogger, cfg *config.Config, client *resty.Client, RandomValue float64, PollCount int64) {
+func ReportMetrics(sugar *zap.SugaredLogger, cfg *config.Config, client *resty.Client, randomValue float64, pollCount int64) {
 	gauges := collectMemoryMetrics()
-	gauges["RandomValue"] = RandomValue
+	gauges["RandomValue"] = randomValue
 	url := generateMetricURL(cfg.Addr)
 
 	counters := map[string]int64{
-		"PollCount": PollCount,
+		"PollCount": pollCount,
 	}
 
 	for name, value := range gauges {
@@ -99,11 +99,11 @@ func ReportMetrics(sugar *zap.SugaredLogger, cfg *config.Config, client *resty.C
 		reportSingleMetric(sugar, url, client, &res)
 	}
 
-	for name, value := range counters {
+	for name, delta := range counters {
 		res := models.Metrics{
 			ID:    name,
 			MType: constants.MetricTypeCounter,
-			Delta: &value,
+			Delta: &delta,
 		}
 
 		reportSingleMetric(sugar, url, client, &res)
