@@ -1,6 +1,8 @@
 package metrics
 
 import (
+	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"math/rand"
@@ -64,7 +66,22 @@ func reportSingleMetric(sugar *zap.SugaredLogger, url string, client *resty.Clie
 		sugar.Errorw("JSON marshaling failed", err)
 	}
 
-	resp, err := client.R().SetHeader("Content-Type", "application/json").SetBody(jsonData).Post(url)
+	var b bytes.Buffer
+	gz := gzip.NewWriter(&b)
+	if _, gzErr := gz.Write(jsonData); gzErr != nil {
+		sugar.Errorw("Failed to write gzipped JSON data", err)
+		return
+	}
+	if gzErr := gz.Close(); gzErr != nil {
+		sugar.Errorw("Failed to close gzip writer", err)
+		return
+	}
+
+	resp, err := client.R().
+		SetHeader("Content-Type", "application/json").
+		SetHeader("Content-Encoding", "gzip").
+		SetBody(b.Bytes()).
+		Post(url)
 
 	if err != nil {
 		sugar.Errorw("Error sending request for metric", err)
