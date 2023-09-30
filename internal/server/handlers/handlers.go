@@ -184,12 +184,13 @@ func HandleGetMetric(sugar *zap.SugaredLogger, storage storage.MetricStorage) ht
 
 		w.WriteHeader(http.StatusOK)
 		if _, err := io.WriteString(w, fmt.Sprint(v)); err != nil {
+			sugar.Errorw("Cannot write to response body", err)
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		}
 	}
 }
 
-func HandleMetricsHTML(storage fmt.Stringer) http.HandlerFunc {
+func HandleMetricsHTML(sugar *zap.SugaredLogger, storage fmt.Stringer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		metricsString := storage.String()
 		html := "<html><head><title>Metrics</title>" +
@@ -201,6 +202,7 @@ func HandleMetricsHTML(storage fmt.Stringer) http.HandlerFunc {
 		w.Header().Set("Content-Type", "text/html")
 		w.WriteHeader(http.StatusOK)
 		if _, err := w.Write([]byte(html)); err != nil {
+			sugar.Errorw("Cannot write HTML to response body", err)
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		}
 	}

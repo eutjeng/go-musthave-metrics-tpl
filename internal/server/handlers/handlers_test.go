@@ -18,16 +18,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var mockConfig = &config.Config{
+	Addr:           ":8080",
+	Environment:    "test",
+	ReportInterval: time.Second * 10,
+	PollInterval:   time.Second * 2,
+}
+
 func TestHandleUpdateAndGetMetrics(t *testing.T) {
 	storage := storage.NewInMemoryStorage()
 	r := chi.NewRouter()
-
-	mockConfig := &config.Config{
-		Addr:           ":8080",
-		Environment:    "test",
-		ReportInterval: time.Second * 10,
-		PollInterval:   time.Second * 2,
-	}
 
 	sugar, _, _ := logger.InitLogger(mockConfig)
 
@@ -95,11 +95,13 @@ func TestHandleUpdateAndGetMetrics(t *testing.T) {
 
 func TestHandleMetricsHTML(t *testing.T) {
 	storage := storage.NewInMemoryStorage()
+	sugar, _, _ := logger.InitLogger(mockConfig)
+
 	_ = storage.UpdateGauge("testGauge", 42.2)
 	_ = storage.UpdateCounter("testCounter", 42)
 
 	r := chi.NewRouter()
-	r.Get("/", handlers.HandleMetricsHTML(storage))
+	r.Get("/", handlers.HandleMetricsHTML(sugar, storage))
 
 	ts := httptest.NewServer(r)
 	defer ts.Close()
