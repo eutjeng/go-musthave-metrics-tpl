@@ -1,6 +1,7 @@
 package router
 
 import (
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/gzip"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/handlers"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/logger"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/storage"
@@ -11,6 +12,7 @@ import (
 func SetupRouter(sugar *zap.SugaredLogger, storage storage.MetricStorage) *chi.Mux {
 	r := chi.NewRouter()
 
+	r.Use(gzip.WithCompression(sugar))
 	r.Use(logger.WithLogging(sugar))
 
 	r.Get("/", handlers.HandleMetricsHTML(sugar, storage))
