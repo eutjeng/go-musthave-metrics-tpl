@@ -2,34 +2,24 @@ package handlers_test
 
 import (
 	"io"
-	"time"
 
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
-	"github.com/eutjeng/go-musthave-metrics-tpl/internal/config"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/handlers"
-	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/logger"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/storage"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 )
-
-var mockConfig = &config.Config{
-	Addr:           ":8080",
-	Environment:    "test",
-	ReportInterval: time.Second * 10,
-	PollInterval:   time.Second * 2,
-}
 
 func TestHandleUpdateAndGetMetrics(t *testing.T) {
 	storage := storage.NewInMemoryStorage()
 	r := chi.NewRouter()
-
-	sugar, _, _ := logger.InitLogger(mockConfig)
+	sugar := zap.NewExample().Sugar()
 
 	r.HandleFunc("/update", handlers.HandleUpdateMetric(sugar, storage))
 	r.HandleFunc("/value", handlers.HandleGetMetric(sugar, storage))
@@ -95,7 +85,7 @@ func TestHandleUpdateAndGetMetrics(t *testing.T) {
 
 func TestHandleMetricsHTML(t *testing.T) {
 	storage := storage.NewInMemoryStorage()
-	sugar, _, _ := logger.InitLogger(mockConfig)
+	sugar := zap.NewExample().Sugar()
 
 	_ = storage.UpdateGauge("testGauge", 42.2)
 	_ = storage.UpdateCounter("testCounter", 42)
