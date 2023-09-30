@@ -104,10 +104,16 @@ func HandleUpdateMetric(sugar *zap.SugaredLogger, storage storage.MetricStorage)
 
 		if r.Header.Get("Content-Type") == constants.ApplicationJSON {
 			response := map[string]interface{}{
-				"type":  metricType,
-				"name":  metricName,
-				"value": metricValue,
-				"delta": metricDelta,
+				"type": metricType,
+				"name": metricName,
+			}
+
+			if metricValue != nil {
+				response["value"] = metricValue
+			}
+
+			if metricDelta != nil {
+				response["delta"] = metricDelta
 			}
 
 			w.Header().Set("Content-Type", constants.ApplicationJSON)
