@@ -17,6 +17,9 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+// extractMetrics takes an HTTP request and returns metric details extracted from it
+// it handles both JSON and URL parameter formats to retrieve metric type, name, value, and delta
+// returns an error if unable to decode the request body or URL parameters
 func extractMetrics(r *http.Request) (string, string, *float64, *int64, error) {
 	contentType := r.Header.Get("Content-Type")
 
@@ -61,6 +64,9 @@ func extractMetrics(r *http.Request) (string, string, *float64, *int64, error) {
 	return metricType, metricName, metricValue, metricDelta, nil
 }
 
+// HandleUpdateMetric is an HTTP handler that updates a metric in the storage
+// it extracts metric information from the request and uses it to update the metric in storage
+// responds with an HTTP status and, in case of JSON content type, a JSON-encoded response
 func HandleUpdateMetric(sugar *zap.SugaredLogger, storage storage.MetricStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		metricType, metricName, metricValue, metricDelta, err := extractMetrics(r)
@@ -117,6 +123,9 @@ func HandleUpdateMetric(sugar *zap.SugaredLogger, storage storage.MetricStorage)
 	}
 }
 
+// HandleGetMetric is an HTTP handler that retrieves a metric from the storage
+// it extracts metric information from the request and uses it to fetch the metric from storage
+// responds with the metric value in either JSON format or as a plain string based on the request's Content-Type header
 func HandleGetMetric(sugar *zap.SugaredLogger, storage storage.MetricStorage) http.HandlerFunc {
 	var v interface{}
 
@@ -190,6 +199,9 @@ func HandleGetMetric(sugar *zap.SugaredLogger, storage storage.MetricStorage) ht
 	}
 }
 
+// HandleMetricsHTML is an HTTP handler that generates an HTML page displaying all metrics
+// the page is generated based on the metrics data retrieved from the storage
+// responds with an HTML page containing the metrics
 func HandleMetricsHTML(sugar *zap.SugaredLogger, storage fmt.Stringer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		metricsString := storage.String()
