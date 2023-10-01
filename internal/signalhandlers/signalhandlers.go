@@ -25,6 +25,10 @@ func HandleSignals(signalChan <-chan os.Signal, quitChan chan<- struct{}, storag
 // If an error is received, it logs the error and exits the application
 func HandleServerErrors(errChan chan error, sugar *zap.SugaredLogger, cfg *config.Config) {
 	err := <-errChan
+	if err == http.ErrServerClosed {
+		sugar.Info("HTTP server closed gracefully")
+		return
+	}
 	sugar.Fatalf("Failed to start HTTP server on address %s: %s", cfg.Addr, err)
 }
 
