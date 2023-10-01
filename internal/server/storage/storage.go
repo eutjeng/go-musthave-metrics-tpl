@@ -8,27 +8,29 @@ import (
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/utils"
 )
 
-// MetricStorage defines an interface for storing and retrieving
-// different types of metrics such as gauges and counters
+// MetricStorage is an interface that provides methods for manipulating
+// various types of metrics such as gauges and counters
 type MetricStorage interface {
-	// UpdateGauge sets the current value of a gauge metric identified
-	// by its name. Returns an error if the operation fails
+	// UpdateGauge sets a new value for a gauge metric identified by its name
+	// the function returns an error if the operation fails
+	// if 'shouldNotify' is true, an update notification is triggered
 	UpdateGauge(name string, value float64, shouldNotify bool) error
 
-	// UpdateCounter increments the value of a counter metric identified
-	// by its name by a given value. Returns an error if the operation fails
+	// UpdateCounter increments the value of a counter metric by a given value
+	// the function returns an error if the operation fails
+	// if 'shouldNotify' is true, an update notification is triggered
 	UpdateCounter(name string, value int64, shouldNotify bool) error
 
-	// GetGauge retrieves the current value of a gauge metric identified
-	// by its name. Returns the value and an error if the operation fails
+	// GetGauge fetches the current value of a gauge metric by its name
+	// returns the fetched value along with an error if the operation fails
 	GetGauge(name string) (float64, error)
 
-	// GetCounter retrieves the current value of a counter metric identified
-	// by its name. Returns the value and an error if the operation fails
+	// GetCounter fetches the current value of a counter metric by its name
+	// returns the fetched value along with an error if the operation fails
 	GetCounter(name string) (int64, error)
 
-	// String returns a string representation of the stored metrics
-	// useful for debugging or logging
+	// String returns a stringified representation of the metrics stored
+	// this is primarily useful for debugging or logging purposes
 	String() string
 }
 
@@ -52,7 +54,6 @@ func NewInMemoryStorage() *InMemoryStorage {
 }
 
 // UpdateGauge sets the current value of a gauge metric identified by its name
-// it locks the storage before updating and unlocks it afterward
 func (s *InMemoryStorage) UpdateGauge(name string, value float64, shouldNotify bool) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -63,7 +64,6 @@ func (s *InMemoryStorage) UpdateGauge(name string, value float64, shouldNotify b
 }
 
 // UpdateCounter increments the value of a counter metric identified by its name
-// it locks the storage before updating and unlocks it afterward
 func (s *InMemoryStorage) UpdateCounter(name string, value int64, shouldNotify bool) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -74,7 +74,6 @@ func (s *InMemoryStorage) UpdateCounter(name string, value int64, shouldNotify b
 }
 
 // GetGauge fetches the current value of a gauge metric by its name from storage
-// it acquires a read lock before fetching and releases it afterward
 func (s *InMemoryStorage) GetGauge(name string) (float64, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -88,7 +87,6 @@ func (s *InMemoryStorage) GetGauge(name string) (float64, error) {
 }
 
 // GetCounter fetches the current value of a counter metric by its name from storage
-// it acquires a read lock before fetching and releases it afterward
 func (s *InMemoryStorage) GetCounter(name string) (int64, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -119,7 +117,6 @@ func (s *InMemoryStorage) SetMetricsData(gauges map[string]float64, counters map
 }
 
 // String provides a string representation of all the metrics in the storage
-// it locks the storage before generating the string and unlocks it afterward
 func (s *InMemoryStorage) String() string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
