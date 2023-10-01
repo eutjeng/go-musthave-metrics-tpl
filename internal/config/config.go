@@ -10,17 +10,18 @@ import (
 	"github.com/caarlos0/env/v6"
 )
 
+// Config represents the configuration options for the server, populated via environment variables
 type Config struct {
-	Addr            string        `env:"ADDRESS"`
-	Environment     string        `env:"ENVIRONMENT"`
-	FileStoragePath string        `env:"FILE_STORAGE_PATH"`
-	Restore         bool          `eng:"RESTORE"`
-	ReportInterval  time.Duration `env:"REPORT_INTERVAL"`
-	PollInterval    time.Duration `env:"POLL_INTERVAL"`
-	StoreInterval   time.Duration `env:"STORE_INTERVAL"`
-	ReadTimeout     time.Duration `env:"READ_TIMEOUT"`
-	WriteTimeout    time.Duration `env:"WRITE_TIMEOUT"`
-	IdleTimeout     time.Duration `env:"IDLE_TIMEOUT"`
+	Addr            string        `env:"ADDRESS"`           // the address and port on which the server will run
+	Environment     string        `env:"ENVIRONMENT"`       // the application's environment, can be 'development' or 'production'
+	FileStoragePath string        `env:"FILE_STORAGE_PATH"` // the filename where the current metrics are saved
+	Restore         bool          `env:"RESTORE"`           // whether to restore previously saved values from a file upon server startup
+	ReportInterval  time.Duration `env:"REPORT_INTERVAL"`   // interval for sending metrics to the server, in seconds
+	PollInterval    time.Duration `env:"POLL_INTERVAL"`     // interval for polling metrics from the runtime package, in seconds
+	StoreInterval   time.Duration `env:"STORE_INTERVAL"`    // time interval for saving the current metrics to disk, in seconds
+	ReadTimeout     time.Duration `env:"READ_TIMEOUT"`      // read timeout for the server, in seconds
+	WriteTimeout    time.Duration `env:"WRITE_TIMEOUT"`     // write timeout for the server, in seconds
+	IdleTimeout     time.Duration `env:"IDLE_TIMEOUT"`      // idle timeout for server connections, in seconds
 }
 
 const (
@@ -53,6 +54,10 @@ func loadFromEnv(cfg *Config) error {
 		return err
 	}
 
+	if !isValidEnvironment(cfg.Environment) {
+		return fmt.Errorf("invalid environment: %s. Possible values are 'development' or 'production'", cfg.Environment)
+	}
+
 	return nil
 }
 
@@ -60,23 +65,22 @@ func loadFromEnv(cfg *Config) error {
 func loadFromFlags(cfg *Config) error {
 	flagSet := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 
-	addr := flagSet.String("a", defaultAddr, "address and port to run server (string)")
-	reportInterval := flagSet.Int64("r", defaultReportInterval, "frequency of sending metrics to the server (seconds)")
-	pollInterval := flagSet.Int64("p", defaultPollInterval, "frequency of metrics polling from the runtime package (seconds)")
-	env := flagSet.String("e", defaultEnvironment, "application environment (development|production)")
-	restore := flagSet.Bool("rs", defaultRestore, "load previously saved values from the specified file at server startup (bool)")
-	fileStoragePath := flagSet.String("f", defaultFileStoragePath, "file name where the current values are saved (string)")
-	storeInterval := flagSet.Int64("i", defaultStoreInterval, "time interval after which the current server readings are saved to disk (seconds)")
-	readTimeout := flagSet.Int64("rt", defaultReadTimeout, "read timeout (seconds)")
-	writeTimeout := flagSet.Int64("wt", defaultWriteTimeout, "write timeout (seconds)")
-	idleTimeout := flagSet.Int64("it", defaultIdleTimeout, "idle timeout (seconds)")
+	addr := flagSet.String("a", defaultAddr, "Specify the address and port on which the server will run")
+	reportInterval := flagSet.Int64("r", defaultReportInterval, "Set the interval for sending metrics to the server, in seconds")
+	pollInterval := flagSet.Int64("p", defaultPollInterval, "Set the interval for polling metrics from the runtime package, in seconds")
+	env := flagSet.String("e", defaultEnvironment, "Specify the application's environment. Possible values are 'development' or 'production'")
+	restore := flagSet.Bool("rs", defaultRestore, "Enable or disable the restoration of previously saved values from a file upon server startup")
+	fileStoragePath := flagSet.String("f", defaultFileStoragePath, "Specify the filename where current metric values will be saved")
+	storeInterval := flagSet.Int64("i", defaultStoreInterval, "Set the interval for saving the current server metrics to disk, in seconds")
+	readTimeout := flagSet.Int64("rt", defaultReadTimeout, "Specify the read timeout for the server, in seconds")
+	writeTimeout := flagSet.Int64("wt", defaultWriteTimeout, "Specify the write timeout for the server, in seconds")
+	idleTimeout := flagSet.Int64("it", defaultIdleTimeout, "Specify the idle timeout for server connections, in seconds")
 
 	if err := flagSet.Parse(os.Args[1:]); err != nil {
 		return fmt.Errorf("failed to parse flags: %w", err)
 	}
 
 	cfg.Addr = *addr
-	cfg.Environment = *env
 	cfg.FileStoragePath = *fileStoragePath
 	cfg.Restore = *restore
 	cfg.ReportInterval = time.Duration(*reportInterval) * time.Second
@@ -85,6 +89,11 @@ func loadFromFlags(cfg *Config) error {
 	cfg.WriteTimeout = time.Duration(*writeTimeout) * time.Second
 	cfg.IdleTimeout = time.Duration(*idleTimeout) * time.Second
 	cfg.StoreInterval = time.Duration(*storeInterval) * time.Second
+	cfg.Environment = *env
+
+	if !isValidEnvironment(cfg.Environment) {
+		return fmt.Errorf("invalid environment: %s. Possible values are 'development' or 'production'", cfg.Environment)
+	}
 
 	return nil
 }
@@ -136,4 +145,8 @@ func getDurationFields(cfg *Config) map[string]string {
 	}
 
 	return envVars
+}
+
+func isValidEnvironment(env string) bool {
+	return env == "development" || env == "production"
 }
