@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/config"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/storage"
 	"go.uber.org/zap"
 )
@@ -52,6 +53,14 @@ func LoadFromFile(storage *storage.InMemoryStorage, filename string) error {
 
 	storage.SetMetricsData(data.Gauges, data.Counter)
 	return nil
+}
+
+func RestoreData(sugar *zap.SugaredLogger, storage *storage.InMemoryStorage, cfg *config.Config) {
+	if cfg.Restore {
+		if fileErr := LoadFromFile(storage, cfg.FileStoragePath); fileErr != nil {
+			sugar.Errorf("Error when loading from file: %v", fileErr)
+		}
+	}
 }
 
 func StartSyncSave(sugar *zap.SugaredLogger, storage *storage.InMemoryStorage, filename string) {

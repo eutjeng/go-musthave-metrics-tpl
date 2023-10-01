@@ -1,71 +1,47 @@
 package main
 
 import (
-	"log"
-	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
-
-	"github.com/eutjeng/go-musthave-metrics-tpl/internal/config"
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/appinit"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/filestorage"
-	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/logger"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/router"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/storage"
-	"go.uber.org/zap"
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/signalhandlers"
 )
 
-func handleSignals(signalChan <-chan os.Signal, storage *storage.InMemoryStorage, cfg *config.Config, sugar *zap.SugaredLogger) {
-	<-signalChan
-	if err := filestorage.SaveToFile(storage, cfg.FileStoragePath); err != nil {
-		sugar.Errorf("Error when saving data to file: %v", err)
-	}
-	os.Exit(0)
-}
-
 func main() {
-	cfg, err := config.ParseConfig()
-	if err != nil {
-		log.Fatalf("Error while parsing config: %s", err)
-	}
-
-	sugar, syncFunc, err := logger.InitLogger(cfg)
-	if err != nil {
-		log.Fatalf("Failed to initialize logger: %s", err)
-	}
+	// initialization: config, logger, storage, and server
+	cfg, sugar, syncFunc := appinit.InitApp()
 	defer syncFunc()
-
 	storage := storage.NewInMemoryStorage()
-	isSyncedSaveToFile := cfg.StoreInterval == 0
+	srv := appinit.InitServer(cfg, router.SetupRouter(sugar, storage, cfg.StoreInterval == 0))
 
-	r := router.SetupRouter(sugar, storage, isSyncedSaveToFile)
+	// restore data from file if necessary
+	filestorage.RestoreData(sugar, storage, cfg)
 
-	srv := &http.Server{
-		Addr:         cfg.Addr,
-		Handler:      r,
-		ReadTimeout:  cfg.ReadTimeout,
-		WriteTimeout: cfg.WriteTimeout,
-		IdleTimeout:  cfg.IdleTimeout,
-	}
+	// initialize data save mechanisms
+	appinit.InitDataSave(storage, cfg, sugar)
 
-	if cfg.Restore {
-		if fileErr := filestorage.LoadFromFile(storage, cfg.FileStoragePath); fileErr != nil {
-			sugar.Errorf("Error when loading from file: %v", fileErr)
-		}
-	}
+	// initialize signal handling
+	quitChan, signalChan := appinit.InitSignalHandling()
+	go signalhandlers.HandleSignals(signalChan, quitChan, storage, cfg, sugar)
 
-	if isSyncedSaveToFile {
-		filestorage.StartSyncSave(sugar, storage, cfg.FileStoragePath)
-	} else {
-		filestorage.StartPeriodicSave(sugar, storage, cfg.StoreInterval, cfg.FileStoragePath)
-	}
+	// start server
+	errChan := make(chan error)
+	appinit.StartServer(srv, errChan)
 
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, os.Interrupt, syscall.SIGTERM)
-	go handleSignals(signalChan, storage, cfg, sugar)
+	// prepare for shutdown or errors
+	doneChan := make(chan struct{})
 
-	if err = srv.ListenAndServe(); err != nil {
-		sugar.Fatalf("Failed to start HTTP server on address %s: %s", cfg.Addr, err)
-	}
+	go func() {
+		signalhandlers.HandleServerErrors(errChan, sugar, cfg)
+		doneChan <- struct{}{}
+	}()
 
+	go func() {
+		signalhandlers.HandleShutdownServer(quitChan, srv, sugar)
+		doneChan <- struct{}{}
+	}()
+
+	// wait for shutdown or error signal
+	<-doneChan
 }
