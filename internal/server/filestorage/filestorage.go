@@ -16,6 +16,7 @@ type SerializedMetrics struct {
 	Counter map[string]int64   `json:"counter"`
 }
 
+// SaveToFile saves metrics to a file. Directories are created if they do not exist
 func SaveToFile(storage *storage.InMemoryStorage, filename string) error {
 	gauges, counters := storage.GetMetricsData()
 
@@ -37,6 +38,7 @@ func SaveToFile(storage *storage.InMemoryStorage, filename string) error {
 	return os.WriteFile(filename, jsonData, 0644)
 }
 
+// LoadFromFile loads metrics from a file. If the file does not exist, no error is returned
 func LoadFromFile(storage *storage.InMemoryStorage, filename string) error {
 	jsonData, err := os.ReadFile(filename)
 	if err != nil {
@@ -63,6 +65,7 @@ func RestoreData(sugar *zap.SugaredLogger, storage *storage.InMemoryStorage, cfg
 	}
 }
 
+// StartSyncSave starts a goroutine that saves metrics to a file whenever an update occurs
 func StartSyncSave(sugar *zap.SugaredLogger, storage *storage.InMemoryStorage, filename string) {
 	go func() {
 		for range storage.GetUpdateChannel() {
@@ -73,6 +76,7 @@ func StartSyncSave(sugar *zap.SugaredLogger, storage *storage.InMemoryStorage, f
 	}()
 }
 
+// StartPeriodicSave starts a goroutine that saves metrics to a file at regular intervals
 func StartPeriodicSave(sugar *zap.SugaredLogger, storage *storage.InMemoryStorage, interval time.Duration, filename string) {
 	go func() {
 		ticker := time.NewTicker(interval)
