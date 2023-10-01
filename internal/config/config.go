@@ -11,23 +11,29 @@ import (
 )
 
 type Config struct {
-	Addr           string        `env:"ADDRESS"`
-	Environment    string        `env:"ENVIRONMENT"`
-	ReportInterval time.Duration `env:"REPORT_INTERVAL"`
-	PollInterval   time.Duration `env:"POLL_INTERVAL"`
-	ReadTimeout    time.Duration `env:"READ_TIMEOUT"`
-	WriteTimeout   time.Duration `env:"WRITE_TIMEOUT"`
-	IdleTimeout    time.Duration `env:"IDLE_TIMEOUT"`
+	Addr            string        `env:"ADDRESS"`
+	Environment     string        `env:"ENVIRONMENT"`
+	FileStoragePath string        `env:"FILE_STORAGE_PATH"`
+	Restore         bool          `eng:"RESTORE"`
+	ReportInterval  time.Duration `env:"REPORT_INTERVAL"`
+	PollInterval    time.Duration `env:"POLL_INTERVAL"`
+	StoreInterval   time.Duration `env:"STORE_INTERVAL"`
+	ReadTimeout     time.Duration `env:"READ_TIMEOUT"`
+	WriteTimeout    time.Duration `env:"WRITE_TIMEOUT"`
+	IdleTimeout     time.Duration `env:"IDLE_TIMEOUT"`
 }
 
 const (
-	defaultAddr           = ":8080"
-	defaultEnvironment    = "development"
-	defaultReportInterval = 10 // in seconds
-	defaultPollInterval   = 2  // in seconds
-	defaultReadTimeout    = 5  // in seconds
-	defaultWriteTimeout   = 10 // in seconds
-	defaultIdleTimeout    = 15 // in seconds
+	defaultAddr            = ":8080"
+	defaultEnvironment     = "development"
+	defaultFileStoragePath = "/tmp/metrics-db.json"
+	defaultRestore         = true
+	defaultReportInterval  = 10  // in seconds
+	defaultPollInterval    = 2   // in seconds
+	defaultReadTimeout     = 5   // in seconds
+	defaultWriteTimeout    = 10  // in seconds
+	defaultIdleTimeout     = 15  // in seconds
+	defaultStoreInterval   = 300 // in seconds
 )
 
 func ParseConfig() (*Config, error) {
@@ -54,25 +60,31 @@ func loadFromEnv(cfg *Config) error {
 func loadFromFlags(cfg *Config) error {
 	flagSet := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 
-	addr := flagSet.String("a", defaultAddr, "address and port to run server")
+	addr := flagSet.String("a", defaultAddr, "address and port to run server (string)")
 	reportInterval := flagSet.Int64("r", defaultReportInterval, "frequency of sending metrics to the server (seconds)")
 	pollInterval := flagSet.Int64("p", defaultPollInterval, "frequency of metrics polling from the runtime package (seconds)")
 	env := flagSet.String("e", defaultEnvironment, "application environment (development|production)")
-	readTimeout := flagSet.Int64("rt", defaultReadTimeout, "read timeout in seconds")
-	writeTimeout := flagSet.Int64("wt", defaultWriteTimeout, "write timeout in seconds")
-	idleTimeout := flagSet.Int64("it", defaultIdleTimeout, "idle timeout in seconds")
+	restore := flagSet.Bool("rs", defaultRestore, "load previously saved values from the specified file at server startup (bool)")
+	fileStoragePath := flagSet.String("f", defaultFileStoragePath, "file name where the current values are saved (string)")
+	storeInterval := flagSet.Int64("i", defaultStoreInterval, "time interval after which the current server readings are saved to disk (seconds)")
+	readTimeout := flagSet.Int64("rt", defaultReadTimeout, "read timeout (seconds)")
+	writeTimeout := flagSet.Int64("wt", defaultWriteTimeout, "write timeout (seconds)")
+	idleTimeout := flagSet.Int64("it", defaultIdleTimeout, "idle timeout (seconds)")
 
 	if err := flagSet.Parse(os.Args[1:]); err != nil {
 		return fmt.Errorf("failed to parse flags: %w", err)
 	}
 
 	cfg.Addr = *addr
+	cfg.Environment = *env
+	cfg.FileStoragePath = *fileStoragePath
+	cfg.Restore = *restore
 	cfg.ReportInterval = time.Duration(*reportInterval) * time.Second
 	cfg.PollInterval = time.Duration(*pollInterval) * time.Second
-	cfg.Environment = *env
 	cfg.ReadTimeout = time.Duration(*readTimeout) * time.Second
 	cfg.WriteTimeout = time.Duration(*writeTimeout) * time.Second
 	cfg.IdleTimeout = time.Duration(*idleTimeout) * time.Second
+	cfg.StoreInterval = time.Duration(*storeInterval) * time.Second
 
 	return nil
 }
