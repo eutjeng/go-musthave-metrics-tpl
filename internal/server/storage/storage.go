@@ -39,7 +39,7 @@ type InMemoryStorage struct {
 	updateChan chan struct{} // Channel to notify about updates
 	gauges     map[string]float64
 	counter    map[string]int64
-	mu         sync.RWMutex
+	mu         sync.Mutex
 }
 
 // NewInMemoryStorage creates a new instance of InMemoryStorage and returns it
@@ -76,8 +76,8 @@ func (s *InMemoryStorage) UpdateCounter(name string, value int64, shouldNotify b
 // GetGauge fetches the current value of a gauge metric by its name from storage
 // it acquires a read lock before fetching and releases it afterward
 func (s *InMemoryStorage) GetGauge(name string) (float64, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	value, ok := s.gauges[name]
 	if !ok {
@@ -90,8 +90,8 @@ func (s *InMemoryStorage) GetGauge(name string) (float64, error) {
 // GetCounter fetches the current value of a counter metric by its name from storage
 // it acquires a read lock before fetching and releases it afterward
 func (s *InMemoryStorage) GetCounter(name string) (int64, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	value, ok := s.counter[name]
 	if !ok {
@@ -103,8 +103,8 @@ func (s *InMemoryStorage) GetCounter(name string) (int64, error) {
 
 // GetMetricsData returns the stored gauges and counters metrics
 func (s *InMemoryStorage) GetMetricsData() (map[string]float64, map[string]int64) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	return s.gauges, s.counter
 }
