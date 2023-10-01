@@ -9,32 +9,32 @@ import (
 )
 
 // MetricStorage defines an interface for storing and retrieving
-// different types of metrics such as gauges and counters.
+// different types of metrics such as gauges and counters
 type MetricStorage interface {
 	// UpdateGauge sets the current value of a gauge metric identified
-	// by its name. Returns an error if the operation fails.
+	// by its name. Returns an error if the operation fails
 	UpdateGauge(name string, value float64, shouldNotify bool) error
 
 	// UpdateCounter increments the value of a counter metric identified
-	// by its name by a given value. Returns an error if the operation fails.
+	// by its name by a given value. Returns an error if the operation fails
 	UpdateCounter(name string, value int64, shouldNotify bool) error
 
 	// GetGauge retrieves the current value of a gauge metric identified
-	// by its name. Returns the value and an error if the operation fails.
+	// by its name. Returns the value and an error if the operation fails
 	GetGauge(name string) (float64, error)
 
 	// GetCounter retrieves the current value of a counter metric identified
-	// by its name. Returns the value and an error if the operation fails.
+	// by its name. Returns the value and an error if the operation fails
 	GetCounter(name string) (int64, error)
 
-	// String returns a string representation of the stored metrics,
-	// useful for debugging or logging.
+	// String returns a string representation of the stored metrics
+	// useful for debugging or logging
 	String() string
 }
 
-// InMemoryStorage is an implementation of the MetricStorage interface.
-// It stores the metrics in an in-memory data structure.
-// This implementation is thread-safe.
+// InMemoryStorage is an implementation of the MetricStorage interface
+// it stores the metrics in an in-memory data structure
+// this implementation is thread-safe
 type InMemoryStorage struct {
 	updateChan chan struct{} // Channel to notify about updates
 	gauges     map[string]float64
