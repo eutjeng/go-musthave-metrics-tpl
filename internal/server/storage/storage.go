@@ -2,10 +2,10 @@ package storage
 
 import (
 	"fmt"
-	"reflect"
-	"sort"
 	"strings"
 	"sync"
+
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/utils"
 )
 
 // MetricStorage defines an interface for storing and retrieving
@@ -118,52 +118,6 @@ func (s *InMemoryStorage) SetMetricsData(gauges map[string]float64, counters map
 	s.counter = counters
 }
 
-// notifyUpdate sends a notification through updateChan if shouldNotify is true
-func (s *InMemoryStorage) notifyUpdate(shouldNotify bool) {
-	if shouldNotify {
-		s.updateChan <- struct{}{}
-	}
-}
-
-// GetUpdateChannel returns the update channel for this storage
-// This channel is used to notify about updates in storage
-func (s *InMemoryStorage) GetUpdateChannel() chan struct{} {
-	return s.updateChan
-}
-
-// getSortedKeys takes a map and returns its keys sorted as a slice of strings
-func getSortedKeys(m interface{}) []string {
-	var keys []string
-	v := reflect.ValueOf(m)
-
-	if v.Kind() == reflect.Map {
-		for _, key := range v.MapKeys() {
-			keys = append(keys, key.String())
-		}
-
-		sort.Strings(keys)
-	}
-
-	return keys
-}
-
-// formatMapSortedKeys formats the key-value pairs of a map to a string,
-// with keys sorted
-func (s *InMemoryStorage) formatMapSortedKeys(m interface{}) string {
-	var result strings.Builder
-	keys := getSortedKeys(m)
-
-	for _, key := range keys {
-		switch mapType := m.(type) {
-		case map[string]int64:
-			result.WriteString(fmt.Sprintf("%s: %d\n", key, mapType[key]))
-		case map[string]float64:
-			result.WriteString(fmt.Sprintf("%s: %f\n", key, mapType[key]))
-		}
-	}
-	return result.String()
-}
-
 // String provides a string representation of all the metrics in the storage
 // it locks the storage before generating the string and unlocks it afterward
 func (s *InMemoryStorage) String() string {
@@ -172,9 +126,22 @@ func (s *InMemoryStorage) String() string {
 
 	var result strings.Builder
 	result.WriteString("Counter values:\n")
-	result.WriteString(s.formatMapSortedKeys(s.counter))
+	result.WriteString(utils.FormatMapSortedKeys(s.counter))
 	result.WriteString("\nGauge values:\n")
-	result.WriteString(s.formatMapSortedKeys(s.gauges))
+	result.WriteString(utils.FormatMapSortedKeys(s.gauges))
 
 	return result.String()
+}
+
+// GetUpdateChannel returns the update channel for this storage
+// This channel is used to notify about updates in storage
+func (s *InMemoryStorage) GetUpdateChannel() chan struct{} {
+	return s.updateChan
+}
+
+// notifyUpdate sends a notification through updateChan if shouldNotify is true
+func (s *InMemoryStorage) notifyUpdate(shouldNotify bool) {
+	if shouldNotify {
+		s.updateChan <- struct{}{}
+	}
 }
