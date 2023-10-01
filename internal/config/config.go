@@ -66,11 +66,11 @@ func loadFromFlags(cfg *Config) error {
 	flagSet := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 
 	addr := flagSet.String("a", defaultAddr, "Specify the address and port on which the server will run")
-	reportInterval := flagSet.Int64("r", defaultReportInterval, "Set the interval for sending metrics to the server, in seconds")
-	pollInterval := flagSet.Int64("p", defaultPollInterval, "Set the interval for polling metrics from the runtime package, in seconds")
 	env := flagSet.String("e", defaultEnvironment, "Specify the application's environment. Possible values are 'development' or 'production'")
-	restore := flagSet.Bool("rs", defaultRestore, "Enable or disable the restoration of previously saved values from a file upon server startup")
 	fileStoragePath := flagSet.String("f", defaultFileStoragePath, "Specify the filename where current metric values will be saved")
+	restore := flagSet.Bool("rs", defaultRestore, "Enable or disable the restoration of previously saved values from a file upon server startup")
+	pollInterval := flagSet.Int64("p", defaultPollInterval, "Set the interval for polling metrics from the runtime package, in seconds")
+	reportInterval := flagSet.Int64("r", defaultReportInterval, "Set the interval for sending metrics to the server, in seconds")
 	storeInterval := flagSet.Int64("i", defaultStoreInterval, "Set the interval for saving the current server metrics to disk, in seconds")
 	readTimeout := flagSet.Int64("rt", defaultReadTimeout, "Specify the read timeout for the server, in seconds")
 	writeTimeout := flagSet.Int64("wt", defaultWriteTimeout, "Specify the write timeout for the server, in seconds")
@@ -81,6 +81,7 @@ func loadFromFlags(cfg *Config) error {
 	}
 
 	cfg.Addr = *addr
+	cfg.Environment = *env
 	cfg.FileStoragePath = *fileStoragePath
 	cfg.Restore = *restore
 	cfg.ReportInterval = time.Duration(*reportInterval) * time.Second
@@ -89,7 +90,6 @@ func loadFromFlags(cfg *Config) error {
 	cfg.WriteTimeout = time.Duration(*writeTimeout) * time.Second
 	cfg.IdleTimeout = time.Duration(*idleTimeout) * time.Second
 	cfg.StoreInterval = time.Duration(*storeInterval) * time.Second
-	cfg.Environment = *env
 
 	if !isValidEnvironment(cfg.Environment) {
 		return fmt.Errorf("invalid environment: %s. Possible values are 'development' or 'production'", cfg.Environment)
