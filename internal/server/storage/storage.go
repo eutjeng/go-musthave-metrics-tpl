@@ -13,11 +13,11 @@ import (
 type MetricStorage interface {
 	// UpdateGauge sets the current value of a gauge metric identified
 	// by its name. Returns an error if the operation fails.
-	UpdateGauge(name string, value float64) error
+	UpdateGauge(name string, value float64, shouldNotify bool) error
 
 	// UpdateCounter increments the value of a counter metric identified
 	// by its name by a given value. Returns an error if the operation fails.
-	UpdateCounter(name string, value int64) error
+	UpdateCounter(name string, value int64, shouldNotify bool) error
 
 	// GetGauge retrieves the current value of a gauge metric identified
 	// by its name. Returns the value and an error if the operation fails.
@@ -35,36 +35,40 @@ type MetricStorage interface {
 // InMemoryStorage is an implementation of the MetricStorage interface
 // that stores the metrics in memory
 type InMemoryStorage struct {
-	gauges  map[string]float64
-	counter map[string]int64
-	mu      sync.RWMutex
+	updateChan chan struct{}
+	gauges     map[string]float64
+	counter    map[string]int64
+	mu         sync.RWMutex
 }
 
 // NewInMemoryStorage creates a new instance of InMemoryStorage and returns it
 func NewInMemoryStorage() *InMemoryStorage {
 	return &InMemoryStorage{
-		counter: make(map[string]int64),
-		gauges:  make(map[string]float64),
+		counter:    make(map[string]int64),
+		gauges:     make(map[string]float64),
+		updateChan: make(chan struct{}, 1),
 	}
 }
 
 // UpdateGauge sets the current value of a gauge metric identified by its name
 // it locks the storage before updating and unlocks it afterward
-func (s *InMemoryStorage) UpdateGauge(name string, value float64) error {
+func (s *InMemoryStorage) UpdateGauge(name string, value float64, shouldNotify bool) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	s.gauges[name] = value
+	s.notifyUpdate(shouldNotify)
 	return nil
 }
 
 // UpdateCounter increments the value of a counter metric identified by its name
 // it locks the storage before updating and unlocks it afterward
-func (s *InMemoryStorage) UpdateCounter(name string, value int64) error {
+func (s *InMemoryStorage) UpdateCounter(name string, value int64, shouldNotify bool) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	s.counter[name] += value
+	s.notifyUpdate(shouldNotify)
 	return nil
 }
 
@@ -94,6 +98,31 @@ func (s *InMemoryStorage) GetCounter(name string) (int64, error) {
 	}
 
 	return value, nil
+}
+
+func (s *InMemoryStorage) GetMetricsData() (map[string]float64, map[string]int64) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.gauges, s.counter
+}
+
+func (s *InMemoryStorage) SetMetricsData(gauges map[string]float64, counters map[string]int64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.gauges = gauges
+	s.counter = counters
+}
+
+func (s *InMemoryStorage) notifyUpdate(shouldNotify bool) {
+	if shouldNotify {
+		s.updateChan <- struct{}{}
+	}
+}
+
+func (s *InMemoryStorage) GetUpdateChannel() chan struct{} {
+	return s.updateChan
 }
 
 // getSortedKeys takes a map and returns its keys sorted as a slice of strings

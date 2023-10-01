@@ -9,7 +9,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func SetupRouter(sugar *zap.SugaredLogger, storage storage.MetricStorage) *chi.Mux {
+func SetupRouter(sugar *zap.SugaredLogger, storage storage.MetricStorage, shouldNotify bool) *chi.Mux {
 	r := chi.NewRouter()
 
 	r.Use(gzip.WithCompression(sugar))
@@ -17,8 +17,8 @@ func SetupRouter(sugar *zap.SugaredLogger, storage storage.MetricStorage) *chi.M
 
 	r.Get("/", handlers.HandleMetricsHTML(sugar, storage))
 	r.Route("/update", func(r chi.Router) {
-		r.Post("/{type}/{name}/{value}", handlers.HandleUpdateMetric(sugar, storage))
-		r.Post("/", handlers.HandleUpdateMetric(sugar, storage))
+		r.Post("/{type}/{name}/{value}", handlers.HandleUpdateMetric(sugar, storage, shouldNotify))
+		r.Post("/", handlers.HandleUpdateMetric(sugar, storage, shouldNotify))
 	})
 	r.Route("/value", func(r chi.Router) {
 		r.Get("/{type}/{name}", handlers.HandleGetMetric(sugar, storage))

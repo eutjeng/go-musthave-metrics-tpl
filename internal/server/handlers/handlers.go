@@ -67,7 +67,7 @@ func extractMetrics(r *http.Request) (string, string, *float64, *int64, error) {
 // HandleUpdateMetric is an HTTP handler that updates a metric in the storage
 // it extracts metric information from the request and uses it to update the metric in storage
 // responds with an HTTP status and, in case of JSON content type, a JSON-encoded response
-func HandleUpdateMetric(sugar *zap.SugaredLogger, storage storage.MetricStorage) http.HandlerFunc {
+func HandleUpdateMetric(sugar *zap.SugaredLogger, storage storage.MetricStorage, shouldNotify bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		metricType, metricName, metricValue, metricDelta, err := extractMetrics(r)
 
@@ -80,14 +80,14 @@ func HandleUpdateMetric(sugar *zap.SugaredLogger, storage storage.MetricStorage)
 		switch metricType {
 		case constants.MetricTypeGauge:
 			if metricValue != nil {
-				err = storage.UpdateGauge(metricName, *metricValue)
+				err = storage.UpdateGauge(metricName, *metricValue, shouldNotify)
 			} else {
 				http.Error(w, "Missing 'value' for gauge", http.StatusBadRequest)
 				return
 			}
 		case constants.MetricTypeCounter:
 			if metricDelta != nil {
-				err = storage.UpdateCounter(metricName, *metricDelta)
+				err = storage.UpdateCounter(metricName, *metricDelta, shouldNotify)
 			} else {
 				http.Error(w, "Missing 'delta' for counter", http.StatusBadRequest)
 				return
