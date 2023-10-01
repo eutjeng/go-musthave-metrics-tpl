@@ -9,27 +9,20 @@ import (
 )
 
 func main() {
-	// initialization: config, logger, storage, and server
 	cfg, sugar, syncFunc := appinit.InitApp()
 	defer syncFunc()
 	storage := storage.NewInMemoryStorage()
 	srv := appinit.InitServer(cfg, router.SetupRouter(sugar, storage, cfg.StoreInterval == 0))
 
-	// restore data from file if necessary
 	filestorage.RestoreData(sugar, storage, cfg)
+	appinit.InitDataSave(sugar, storage, cfg)
 
-	// initialize data save mechanisms
-	appinit.InitDataSave(storage, cfg, sugar)
-
-	// initialize signal handling
 	quitChan, signalChan := appinit.InitSignalHandling()
 	go signalhandlers.HandleSignals(signalChan, quitChan, storage, cfg, sugar)
 
-	// start server
 	errChan := make(chan error)
 	appinit.StartServer(srv, errChan)
 
-	// prepare for shutdown or errors
 	doneChan := make(chan struct{})
 
 	go func() {
@@ -42,6 +35,5 @@ func main() {
 		doneChan <- struct{}{}
 	}()
 
-	// wait for shutdown or error signal
 	<-doneChan
 }
