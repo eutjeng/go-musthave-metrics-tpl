@@ -32,10 +32,11 @@ type MetricStorage interface {
 	String() string
 }
 
-// InMemoryStorage is an implementation of the MetricStorage interface
-// that stores the metrics in memory
+// InMemoryStorage is an implementation of the MetricStorage interface.
+// It stores the metrics in an in-memory data structure.
+// This implementation is thread-safe.
 type InMemoryStorage struct {
-	updateChan chan struct{}
+	updateChan chan struct{} // Channel to notify about updates
 	gauges     map[string]float64
 	counter    map[string]int64
 	mu         sync.RWMutex
@@ -100,6 +101,7 @@ func (s *InMemoryStorage) GetCounter(name string) (int64, error) {
 	return value, nil
 }
 
+// GetMetricsData returns the stored gauges and counters metrics
 func (s *InMemoryStorage) GetMetricsData() (map[string]float64, map[string]int64) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -107,6 +109,7 @@ func (s *InMemoryStorage) GetMetricsData() (map[string]float64, map[string]int64
 	return s.gauges, s.counter
 }
 
+// SetMetricsData sets the gauges and counters metrics in the storage
 func (s *InMemoryStorage) SetMetricsData(gauges map[string]float64, counters map[string]int64) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -115,12 +118,15 @@ func (s *InMemoryStorage) SetMetricsData(gauges map[string]float64, counters map
 	s.counter = counters
 }
 
+// notifyUpdate sends a notification through updateChan if shouldNotify is true
 func (s *InMemoryStorage) notifyUpdate(shouldNotify bool) {
 	if shouldNotify {
 		s.updateChan <- struct{}{}
 	}
 }
 
+// GetUpdateChannel returns the update channel for this storage
+// This channel is used to notify about updates in storage
 func (s *InMemoryStorage) GetUpdateChannel() chan struct{} {
 	return s.updateChan
 }
