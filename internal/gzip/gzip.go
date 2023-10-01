@@ -102,6 +102,7 @@ func WithCompression(sugar *zap.SugaredLogger) func(http.Handler) http.Handler {
 					if cw.statusCode >= http.StatusOK && cw.statusCode < http.StatusMultipleChoices {
 						if err := cw.Close(); err != nil {
 							sugar.Errorw("Failed to close compress writer", err)
+							return
 						}
 						cw.zw.Reset(cw.w)
 					}
