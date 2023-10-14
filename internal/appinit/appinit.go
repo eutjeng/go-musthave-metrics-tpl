@@ -1,7 +1,7 @@
 package appinit
 
 import (
-	"log"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -15,19 +15,19 @@ import (
 )
 
 // InitApp initializes the application by loading the configuration and setting up the logger
-// it returns a configuration object, a logger, and a function to sync the logger
-func InitApp() (*config.Config, *zap.SugaredLogger, func()) {
+// it returns a configuration object, a logger, a function to sync the logger, and possibly an error
+func InitApp() (*config.Config, *zap.SugaredLogger, func(), error) {
 	cfg, err := config.ParseConfig()
 	if err != nil {
-		log.Fatalf("Error while parsing config: %s", err)
+		return nil, nil, nil, fmt.Errorf("error while parsing config: %w", err)
 	}
 
 	sugar, syncFunc, err := logger.InitLogger(cfg)
 	if err != nil {
-		log.Fatalf("Failed to initialize logger: %s", err)
+		return nil, nil, nil, fmt.Errorf("failed to initialize logger: %w", err)
 	}
 
-	return cfg, sugar, syncFunc
+	return cfg, sugar, syncFunc, nil
 }
 
 // InitServer sets up and returns an HTTP server based on the provided configuration and router

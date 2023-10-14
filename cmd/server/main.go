@@ -1,6 +1,8 @@
 package main
 
 import (
+	"log"
+
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/appinit"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/filestorage"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/router"
@@ -9,8 +11,12 @@ import (
 )
 
 func main() {
-	cfg, sugar, syncFunc := appinit.InitApp()
+	cfg, sugar, syncFunc, err := appinit.InitApp()
+	if err != nil {
+		log.Fatalf("Failed to initialize app: %s", err)
+	}
 	defer syncFunc()
+
 	storage := storage.NewInMemoryStorage()
 	srv := appinit.InitServer(cfg, router.SetupRouter(sugar, storage, cfg.StoreInterval == 0))
 
@@ -19,21 +25,18 @@ func main() {
 
 	quitChan, signalChan := appinit.InitSignalHandling()
 	go signalhandlers.HandleSignals(signalChan, quitChan, storage, cfg, sugar)
-
 	errChan := make(chan error)
+
 	appinit.StartServer(srv, errChan)
 
 	doneChan := make(chan struct{})
-
 	go func() {
 		signalhandlers.HandleServerErrors(errChan, sugar, cfg)
 		doneChan <- struct{}{}
 	}()
-
 	go func() {
 		signalhandlers.HandleShutdownServer(quitChan, srv, sugar)
 		doneChan <- struct{}{}
 	}()
-
 	<-doneChan
 }

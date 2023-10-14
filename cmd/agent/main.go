@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"time"
 
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/agent/metrics"
@@ -13,7 +14,10 @@ func main() {
 	var randomValue float64
 
 	client := resty.New()
-	cfg, sugar, syncFunc := appinit.InitApp()
+	cfg, sugar, syncFunc, err := appinit.InitApp()
+	if err != nil {
+		log.Fatalf("Failed to initialize app: %s", err)
+	}
 	defer syncFunc()
 
 	go func() {
