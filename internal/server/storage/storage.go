@@ -40,6 +40,7 @@ type InMemoryStorage struct {
 	mu      sync.RWMutex
 }
 
+// NewInMemoryStorage creates a new instance of InMemoryStorage and returns it
 func NewInMemoryStorage() *InMemoryStorage {
 	return &InMemoryStorage{
 		counter: make(map[string]int64),
@@ -47,6 +48,8 @@ func NewInMemoryStorage() *InMemoryStorage {
 	}
 }
 
+// UpdateGauge sets the current value of a gauge metric identified by its name
+// it locks the storage before updating and unlocks it afterward
 func (s *InMemoryStorage) UpdateGauge(name string, value float64) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -55,6 +58,8 @@ func (s *InMemoryStorage) UpdateGauge(name string, value float64) error {
 	return nil
 }
 
+// UpdateCounter increments the value of a counter metric identified by its name
+// it locks the storage before updating and unlocks it afterward
 func (s *InMemoryStorage) UpdateCounter(name string, value int64) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -63,6 +68,8 @@ func (s *InMemoryStorage) UpdateCounter(name string, value int64) error {
 	return nil
 }
 
+// GetGauge fetches the current value of a gauge metric by its name from storage
+// it acquires a read lock before fetching and releases it afterward
 func (s *InMemoryStorage) GetGauge(name string) (float64, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -75,6 +82,8 @@ func (s *InMemoryStorage) GetGauge(name string) (float64, error) {
 	return value, nil
 }
 
+// GetCounter fetches the current value of a counter metric by its name from storage
+// it acquires a read lock before fetching and releases it afterward
 func (s *InMemoryStorage) GetCounter(name string) (int64, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -87,6 +96,7 @@ func (s *InMemoryStorage) GetCounter(name string) (int64, error) {
 	return value, nil
 }
 
+// getSortedKeys takes a map and returns its keys sorted as a slice of strings
 func getSortedKeys(m interface{}) []string {
 	var keys []string
 	v := reflect.ValueOf(m)
@@ -102,6 +112,8 @@ func getSortedKeys(m interface{}) []string {
 	return keys
 }
 
+// formatMapSortedKeys formats the key-value pairs of a map to a string,
+// with keys sorted
 func (s *InMemoryStorage) formatMapSortedKeys(m interface{}) string {
 	var result strings.Builder
 	keys := getSortedKeys(m)
@@ -117,6 +129,8 @@ func (s *InMemoryStorage) formatMapSortedKeys(m interface{}) string {
 	return result.String()
 }
 
+// String provides a string representation of all the metrics in the storage
+// it locks the storage before generating the string and unlocks it afterward
 func (s *InMemoryStorage) String() string {
 	s.mu.Lock()
 	defer s.mu.Unlock()

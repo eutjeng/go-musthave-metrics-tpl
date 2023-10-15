@@ -6,9 +6,9 @@ import (
 
 func TestInMemoryStorage(t *testing.T) {
 	tests := []struct {
-		name           string
-		counterUpdates map[string]int64
 		gaugeUpdates   map[string]float64
+		counterUpdates map[string]int64
+		name           string
 	}{
 		{
 			name: "Test1",
@@ -36,8 +36,13 @@ func TestInMemoryStorage(t *testing.T) {
 				}
 
 				for name, value := range tt.counterUpdates {
-					if s.counter[name] != value {
-						t.Errorf("Expected counter %s to be %d, got %d", name, value, s.counter[name])
+					retrievedValue, err := s.GetCounter(name)
+					if err != nil {
+						t.Errorf("GetCounter() error = %v", err)
+					}
+
+					if retrievedValue != value {
+						t.Errorf("Expected counter %s to be %d, got %d", name, value, retrievedValue)
 					}
 				}
 			})
@@ -51,9 +56,35 @@ func TestInMemoryStorage(t *testing.T) {
 				}
 
 				for name, value := range tt.gaugeUpdates {
-					if s.gauges[name] != value {
-						t.Errorf("Expected gauge %s to be %f, got %f", name, value, s.gauges[name])
+					retrievedValue, err := s.GetGauge(name)
+					if err != nil {
+						t.Errorf("GetGauge() error = %v", err)
 					}
+
+					if retrievedValue != value {
+						t.Errorf("Expected gauge %s to be %f, got %f", name, value, retrievedValue)
+					}
+				}
+			})
+
+			t.Run("TestNonExistentCounter", func(t *testing.T) {
+				_, err := s.GetCounter("nonExistentCounter")
+				if err == nil {
+					t.Errorf("Expected an error for non-existent counter")
+				}
+			})
+
+			t.Run("TestNonExistentGauge", func(t *testing.T) {
+				_, err := s.GetGauge("nonExistentGauge")
+				if err == nil {
+					t.Errorf("Expected an error for non-existent gauge")
+				}
+			})
+
+			t.Run("TestStringMethod", func(t *testing.T) {
+				str := s.String()
+				if len(str) == 0 {
+					t.Errorf("String method returned an empty string")
 				}
 			})
 		})
