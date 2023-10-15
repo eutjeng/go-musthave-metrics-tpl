@@ -1,40 +1,144 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"html"
 	"io"
 	"net/http"
+	"strings"
 
-	"github.com/go-chi/chi/v5"
+	"go.uber.org/zap"
 
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/constants"
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/models"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/storage"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/utils"
+	"github.com/go-chi/chi/v5"
 )
 
-func HandleUpdateMetric(storage storage.MetricStorage) http.HandlerFunc {
-	var err error
+func extractMetrics(r *http.Request) (string, string, *float64, *int64, error) {
+	contentType := r.Header.Get("Content-Type")
 
-	return func(w http.ResponseWriter, r *http.Request) {
-		metricType := chi.URLParam(r, "type")
-		metricName := chi.URLParam(r, "name")
-		metricValue := chi.URLParam(r, "value")
+	var metricType string
+	var metricName string
+	var metricValue *float64
+	var metricDelta *int64
+
+	if strings.TrimSpace(contentType) == constants.ApplicationJSON {
+		dec := json.NewDecoder(r.Body)
+		var req models.Metrics
+
+		if err := dec.Decode(&req); err != nil {
+			return "", "", nil, nil, err
+		}
+
+		metricType = req.MType
+		metricName = req.ID
+		metricValue = req.Value
+		metricDelta = req.Delta
+
+	} else {
+		metricType = chi.URLParam(r, "type")
+		metricName = chi.URLParam(r, "name")
+
+		valueStr := chi.URLParam(r, "value")
 
 		switch metricType {
-		case "gauge":
-			if v, e := utils.ParseFloat(metricValue); e == nil {
-				err = storage.UpdateGauge(metricName, v)
-			} else {
-				http.Error(w, "Invalid value type for gauge", http.StatusBadRequest)
+		case constants.MetricTypeGauge:
+			if value, err := utils.ParseFloat(valueStr); err == nil {
+				metricValue = &value
+				metricDelta = nil
 			}
-		case "counter":
-			if v, e := utils.ParseInt(metricValue); e == nil {
-				err = storage.UpdateCounter(metricName, v)
+		case constants.MetricTypeCounter:
+			if delta, err := utils.ParseInt(valueStr); err == nil {
+				metricValue = nil
+				metricDelta = &delta
+			}
+		}
+	}
+
+	return metricType, metricName, metricValue, metricDelta, nil
+}
+
+func HandleUpdateMetric(sugar *zap.SugaredLogger, storage storage.MetricStorage) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		metricType, metricName, metricValue, metricDelta, err := extractMetrics(r)
+
+		if err != nil {
+			sugar.Errorw("Error when extracting metrics", err)
+			http.Error(w, "Bad Request", http.StatusBadRequest)
+			return
+		}
+
+		switch metricType {
+		case constants.MetricTypeGauge:
+			if metricValue != nil {
+				err = storage.UpdateGauge(metricName, *metricValue)
 			} else {
-				http.Error(w, "Invalid value type for counter", http.StatusBadRequest)
+				http.Error(w, "Missing 'value' for gauge", http.StatusBadRequest)
+				return
+			}
+		case constants.MetricTypeCounter:
+			if metricDelta != nil {
+				err = storage.UpdateCounter(metricName, *metricDelta)
+			} else {
+				http.Error(w, "Missing 'delta' for counter", http.StatusBadRequest)
+				return
 			}
 		default:
 			http.Error(w, "Invalid metric type", http.StatusBadRequest)
+			return
+		}
+
+		if err != nil {
+			http.Error(w, "Failed to update metric", http.StatusInternalServerError)
+			return
+		}
+
+		if r.Header.Get("Content-Type") == constants.ApplicationJSON {
+			response := map[string]interface{}{
+				"type":  metricType,
+				"name":  metricName,
+				"value": metricValue,
+				"delta": metricDelta,
+			}
+
+			w.Header().Set("Content-Type", constants.ApplicationJSON)
+			w.WriteHeader(http.StatusOK)
+
+			if err := json.NewEncoder(w).Encode(response); err != nil {
+				sugar.Errorw("Cannot encode response JSON body", err)
+				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			}
+		} else {
+			w.WriteHeader(http.StatusOK)
+		}
+	}
+}
+
+func HandleGetMetric(sugar *zap.SugaredLogger, storage storage.MetricStorage) http.HandlerFunc {
+	var v interface{}
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		metricType, metricName, _, _, err := extractMetrics(r)
+
+		if err != nil {
+			sugar.Errorw("Error when extracting metrics", err)
+			http.Error(w, "Bad Request", http.StatusBadRequest)
+			return
+		}
+
+		switch metricType {
+		case constants.MetricTypeGauge:
+			v, err = storage.GetGauge(metricName)
+
+		case constants.MetricTypeCounter:
+			v, err = storage.GetCounter(metricName)
+
+		default:
+			http.Error(w, "Invalid metric type", http.StatusBadRequest)
+			return
 		}
 
 		if err != nil {
@@ -42,33 +146,39 @@ func HandleUpdateMetric(storage storage.MetricStorage) http.HandlerFunc {
 			return
 		}
 
-		w.WriteHeader(http.StatusOK)
-	}
-}
+		if r.Header.Get("Content-Type") == constants.ApplicationJSON {
+			resp := models.Metrics{
+				ID:    metricName,
+				MType: metricType,
+			}
 
-func HandleGetMetric(storage storage.MetricStorage) http.HandlerFunc {
-	var (
-		v   interface{}
-		err error
-	)
+			switch metricType {
+			case constants.MetricTypeGauge:
+				if value, ok := v.(float64); ok {
+					resp.Value = &value
+				} else {
+					sugar.Errorw("Unexpected type for gauge value", "received", v)
+					http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+					return
+				}
 
-	return func(w http.ResponseWriter, r *http.Request) {
-		metricType := chi.URLParam(r, "type")
-		metricName := chi.URLParam(r, "name")
+			case constants.MetricTypeCounter:
+				if value, ok := v.(int64); ok {
+					resp.Delta = &value
+				} else {
+					sugar.Errorw("Unexpected type for counter delta", "received", v)
+					http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+					return
+				}
+			}
 
-		switch metricType {
-		case "gauge":
-			v, err = storage.GetGauge(metricName)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			if err := json.NewEncoder(w).Encode(resp); err != nil {
+				sugar.Errorw("Cannot encode response JSON body", err)
+				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			}
 
-		case "counter":
-			v, err = storage.GetCounter(metricName)
-
-		default:
-			http.Error(w, "Bad request", http.StatusBadRequest)
-		}
-
-		if err != nil {
-			http.Error(w, "Not found", http.StatusNotFound)
 			return
 		}
 
@@ -79,7 +189,7 @@ func HandleGetMetric(storage storage.MetricStorage) http.HandlerFunc {
 	}
 }
 
-func HandleMetricsHTML(storage storage.MetricStorage) http.HandlerFunc {
+func HandleMetricsHTML(storage fmt.Stringer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		metricsString := storage.String()
 		html := "<html><head><title>Metrics</title>" +

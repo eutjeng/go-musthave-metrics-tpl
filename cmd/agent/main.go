@@ -6,6 +6,7 @@ import (
 
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/agent/metrics"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/config"
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/logger"
 	"github.com/go-resty/resty/v2"
 )
 
@@ -20,15 +21,22 @@ func main() {
 		log.Fatalf("Error while parsing config: %s", err)
 	}
 
+	sugar, syncFunc, err := logger.InitLogger(cfg)
+	if err != nil {
+		log.Fatalf("Failed to initialize logger: %s", err)
+	}
+	defer syncFunc()
+
 	go func() {
 		for {
-			metrics.UpdateMetrics(&pollCount, &randomValue)
-			time.Sleep(cfg.PollInterval)
+			metrics.ReportMetrics(sugar, cfg, client, randomValue, pollCount)
+			time.Sleep(cfg.ReportInterval)
+
 		}
 	}()
 
 	for {
-		metrics.ReportMetrics(cfg, client, randomValue, pollCount)
-		time.Sleep(cfg.ReportInterval)
+		metrics.UpdateMetrics(&pollCount, &randomValue)
+		time.Sleep(cfg.PollInterval)
 	}
 }

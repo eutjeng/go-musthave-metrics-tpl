@@ -8,9 +8,9 @@ import (
 
 func TestParseConfig(t *testing.T) {
 	tests := []struct {
+		expectedAddr           string
 		envVars                map[string]string
 		args                   []string
-		expectedAddr           string
 		expectedReportInterval time.Duration
 		expectedPollInterval   time.Duration
 	}{

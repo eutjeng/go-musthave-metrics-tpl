@@ -1,11 +1,19 @@
 package logger
 
 import (
+	"bytes"
+	"encoding/json"
+	"io"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/config"
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/constants"
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/models"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 // responseData stores information about HTTP response
@@ -39,6 +47,26 @@ func WithLogging(sugar *zap.SugaredLogger) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
 
+			var formattedBody []byte
+			if r.Header.Get("Content-Type") == constants.ApplicationJSON {
+				bodyBytes, err := io.ReadAll(r.Body)
+				if err != nil {
+					sugar.Errorw("Cannot read request body", "err", err)
+				}
+
+				r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
+				var bodyData models.Metrics
+				if err := json.Unmarshal(bodyBytes, &bodyData); err != nil {
+					sugar.Errorw("Cannot unmarshal request body", "err", err)
+				}
+
+				formattedBody, err = json.Marshal(bodyData)
+				if err != nil {
+					sugar.Errorw("Cannot marshal request body", "err", err)
+				}
+			}
+
 			responseData := &responseData{
 				status: 0,
 				size:   0,
@@ -52,11 +80,13 @@ func WithLogging(sugar *zap.SugaredLogger) func(http.Handler) http.Handler {
 			duration := time.Since(start)
 
 			sugar.Infow("HTTP request info",
+				"timestamp", start.Format("2006-01-02 15:04:05"),
 				"uri", r.RequestURI,
 				"method", r.Method,
 				"status", responseData.status,
 				"duration", duration,
 				"size", responseData.size,
+				"body", string(formattedBody),
 			)
 		})
 	}
@@ -72,11 +102,34 @@ func getSyncFunc(logger *zap.Logger) func() {
 }
 
 // initLogger инициализирует и возвращает SugaredLogger и функцию для его синхронизации.
-func InitLogger() (*zap.SugaredLogger, func(), error) {
-	zapLogger, err := zap.NewProduction()
+func InitLogger(cfg *config.Config) (*zap.SugaredLogger, func(), error) {
+	var zapLogger *zap.Logger
+	var err error
+
+	if cfg.Environment == "production" {
+		zapLogger, err = zap.NewProduction()
+
+	} else {
+		encoderConfig := zap.NewDevelopmentEncoderConfig()
+		encoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+		encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+		encoderConfig.EncodeDuration = zapcore.StringDurationEncoder
+
+		encoder := zapcore.NewConsoleEncoder(encoderConfig)
+
+		core := zapcore.NewCore(
+			encoder,
+			zapcore.AddSync(os.Stdout),
+			zap.NewAtomicLevelAt(zapcore.DebugLevel),
+		)
+
+		zapLogger = zap.New(core)
+	}
+
 	if err != nil {
 		return nil, nil, err
 	}
+
 	sugar := zapLogger.Sugar()
 	syncFunc := getSyncFunc(zapLogger)
 	return sugar, syncFunc, nil

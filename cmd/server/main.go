@@ -16,7 +16,7 @@ func main() {
 		log.Fatalf("Error while parsing config: %s", err)
 	}
 
-	sugar, syncFunc, err := logger.InitLogger()
+	sugar, syncFunc, err := logger.InitLogger(cfg)
 	if err != nil {
 		log.Fatalf("Failed to initialize logger: %s", err)
 	}
@@ -25,8 +25,15 @@ func main() {
 	storage := storage.NewInMemoryStorage()
 	r := router.SetupRouter(sugar, storage)
 
-	err = http.ListenAndServe(cfg.Addr, r)
-	if err != nil {
+	srv := &http.Server{
+		Addr:         cfg.Addr,
+		Handler:      r,
+		ReadTimeout:  cfg.ReadTimeout,
+		WriteTimeout: cfg.WriteTimeout,
+		IdleTimeout:  cfg.IdleTimeout,
+	}
+
+	if err = srv.ListenAndServe(); err != nil {
 		sugar.Fatalf("Failed to start HTTP server on address %s: %s", cfg.Addr, err)
 	}
 }
