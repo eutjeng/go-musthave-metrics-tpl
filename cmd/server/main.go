@@ -21,7 +21,7 @@ func main() {
 	defer syncFunc()
 
 	storage := storage.NewInMemoryStorage()
-	dbStorage, err := dbstorage.NewDBStorage(cfg.DbDSN)
+	dbStorage, err := dbstorage.NewDBStorage(cfg.DBDSN)
 	if err != nil {
 		sugar.Fatalf("Failed to connect to database: %v", err)
 	}
