@@ -24,7 +24,7 @@ type Interface interface {
 }
 
 // NewDBStorage initializes new database storage
-func NewDBStorage(ctx context.Context, dsn string) (*DBStorage, error) {
+func NewDBStorage(dsn string) (*DBStorage, error) {
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {
 		return nil, err
@@ -143,7 +143,7 @@ func (s *DBStorage) fetchAndFormat(ctx context.Context, query, header string, bu
 				return err
 			}
 		} else {
-			var value int
+			var value int64
 			if err := rows.Scan(&name, &value); err != nil {
 				return err
 			}
