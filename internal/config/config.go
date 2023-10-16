@@ -154,8 +154,6 @@ func getDurationFields(cfg *Config) map[string]string {
 		}
 	}
 
-	fmt.Print(envVars)
-
 	return envVars
 }
 
