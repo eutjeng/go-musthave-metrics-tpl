@@ -153,5 +153,9 @@ func (s *DBStorage) fetchAndFormat(query, header string, builder io.StringWriter
 		}
 	}
 
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
 	return nil
 }
