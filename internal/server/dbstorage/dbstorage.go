@@ -21,6 +21,7 @@ type Interface interface {
 	Ping() error
 	String() string
 	CreateTables() error
+	Close() error
 }
 
 // NewDBStorage initializes new database storage
