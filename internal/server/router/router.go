@@ -1,6 +1,8 @@
 package router
 
 import (
+	"context"
+
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/gzip"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/dbhandlers"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/dbstorage"
@@ -11,22 +13,22 @@ import (
 	"go.uber.org/zap"
 )
 
-func SetupRouter(sugar *zap.SugaredLogger, store models.GeneralStorageInterface, shouldNotify bool) *chi.Mux {
+func SetupRouter(ctx context.Context, sugar *zap.SugaredLogger, store models.GeneralStorageInterface, shouldNotify bool) *chi.Mux {
 	r := chi.NewRouter()
 
 	r.Use(gzip.WithCompression(sugar))
 	r.Use(logger.WithLogging(sugar))
 
-	r.Get("/", handlers.HandleMetricsHTML(sugar, store))
+	r.Get("/", handlers.HandleMetricsHTML(ctx, sugar, store))
 
 	r.Route("/update", func(r chi.Router) {
-		r.Post("/{type}/{name}/{value}", handlers.HandleUpdateMetric(sugar, store, shouldNotify))
-		r.Post("/", handlers.HandleUpdateMetric(sugar, store, shouldNotify))
+		r.Post("/{type}/{name}/{value}", handlers.HandleUpdateMetric(ctx, sugar, store, shouldNotify))
+		r.Post("/", handlers.HandleUpdateMetric(ctx, sugar, store, shouldNotify))
 	})
 
 	r.Route("/value", func(r chi.Router) {
-		r.Get("/{type}/{name}", handlers.HandleGetMetric(sugar, store))
-		r.Post("/", handlers.HandleGetMetric(sugar, store))
+		r.Get("/{type}/{name}", handlers.HandleGetMetric(ctx, sugar, store))
+		r.Post("/", handlers.HandleGetMetric(ctx, sugar, store))
 	})
 
 	if s, ok := store.(dbstorage.Interface); ok {

@@ -88,7 +88,7 @@ func InitDBStorage(ctx context.Context, cfg *config.Config, sugar *zap.SugaredLo
 		wg.Done()
 	}()
 
-	if err := dbStorage.CreateTables(); err != nil {
+	if err := dbStorage.CreateTables(ctx); err != nil {
 		return nil, err
 	}
 	return dbStorage, nil

@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"sync"
@@ -39,7 +40,7 @@ func NewInMemoryStorage() *InMemoryStorage {
 }
 
 // UpdateGauge sets the current value of a gauge metric identified by its name
-func (s *InMemoryStorage) UpdateGauge(name string, value float64, shouldNotify bool) error {
+func (s *InMemoryStorage) UpdateGauge(ctx context.Context, name string, value float64, shouldNotify bool) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -49,7 +50,7 @@ func (s *InMemoryStorage) UpdateGauge(name string, value float64, shouldNotify b
 }
 
 // UpdateCounter increments the value of a counter metric identified by its name
-func (s *InMemoryStorage) UpdateCounter(name string, value int64, shouldNotify bool) error {
+func (s *InMemoryStorage) UpdateCounter(ctx context.Context, name string, value int64, shouldNotify bool) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -59,7 +60,7 @@ func (s *InMemoryStorage) UpdateCounter(name string, value int64, shouldNotify b
 }
 
 // GetGauge fetches the current value of a gauge metric by its name from storage
-func (s *InMemoryStorage) GetGauge(name string) (float64, error) {
+func (s *InMemoryStorage) GetGauge(ctx context.Context, name string) (float64, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -72,7 +73,7 @@ func (s *InMemoryStorage) GetGauge(name string) (float64, error) {
 }
 
 // GetCounter fetches the current value of a counter metric by its name from storage
-func (s *InMemoryStorage) GetCounter(name string) (int64, error) {
+func (s *InMemoryStorage) GetCounter(ctx context.Context, name string) (int64, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -102,7 +103,7 @@ func (s *InMemoryStorage) SetMetricsData(gauges map[string]float64, counters map
 }
 
 // String provides a string representation of all the metrics in the storage
-func (s *InMemoryStorage) String() string {
+func (s *InMemoryStorage) String(ctx context.Context) string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

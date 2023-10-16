@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"html"
@@ -66,7 +67,7 @@ func extractMetrics(r *http.Request) (string, string, *float64, *int64, error) {
 // HandleUpdateMetric is an HTTP handler that updates a metric in the storage
 // it extracts metric information from the request and uses it to update the metric in storage
 // responds with an HTTP status and, in case of JSON content type, a JSON-encoded response
-func HandleUpdateMetric(sugar *zap.SugaredLogger, storage models.GeneralStorageInterface, shouldNotify bool) http.HandlerFunc {
+func HandleUpdateMetric(ctx context.Context, sugar *zap.SugaredLogger, storage models.GeneralStorageInterface, shouldNotify bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		metricType, metricName, metricValue, metricDelta, err := extractMetrics(r)
 
@@ -79,14 +80,14 @@ func HandleUpdateMetric(sugar *zap.SugaredLogger, storage models.GeneralStorageI
 		switch metricType {
 		case constants.MetricTypeGauge:
 			if metricValue != nil {
-				err = storage.UpdateGauge(metricName, *metricValue, shouldNotify)
+				err = storage.UpdateGauge(ctx, metricName, *metricValue, shouldNotify)
 			} else {
 				http.Error(w, "Missing 'value' for gauge", http.StatusBadRequest)
 				return
 			}
 		case constants.MetricTypeCounter:
 			if metricDelta != nil {
-				err = storage.UpdateCounter(metricName, *metricDelta, shouldNotify)
+				err = storage.UpdateCounter(ctx, metricName, *metricDelta, shouldNotify)
 			} else {
 				http.Error(w, "Missing 'delta' for counter", http.StatusBadRequest)
 				return
@@ -131,7 +132,7 @@ func HandleUpdateMetric(sugar *zap.SugaredLogger, storage models.GeneralStorageI
 // HandleGetMetric is an HTTP handler that retrieves a metric from the storage
 // it extracts metric information from the request and uses it to fetch the metric from storage
 // responds with the metric value in either JSON format or as a plain string based on the request's Content-Type header
-func HandleGetMetric(sugar *zap.SugaredLogger, storage models.GeneralStorageInterface) http.HandlerFunc {
+func HandleGetMetric(ctx context.Context, sugar *zap.SugaredLogger, storage models.GeneralStorageInterface) http.HandlerFunc {
 	var v interface{}
 
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -145,10 +146,10 @@ func HandleGetMetric(sugar *zap.SugaredLogger, storage models.GeneralStorageInte
 
 		switch metricType {
 		case constants.MetricTypeGauge:
-			v, err = storage.GetGauge(metricName)
+			v, err = storage.GetGauge(ctx, metricName)
 
 		case constants.MetricTypeCounter:
-			v, err = storage.GetCounter(metricName)
+			v, err = storage.GetCounter(ctx, metricName)
 
 		default:
 			http.Error(w, "Invalid metric type", http.StatusBadRequest)
@@ -207,9 +208,9 @@ func HandleGetMetric(sugar *zap.SugaredLogger, storage models.GeneralStorageInte
 // HandleMetricsHTML is an HTTP handler that generates an HTML page displaying all metrics
 // the page is generated based on the metrics data retrieved from the storage
 // responds with an HTML page containing the metrics
-func HandleMetricsHTML(sugar *zap.SugaredLogger, storage fmt.Stringer) http.HandlerFunc {
+func HandleMetricsHTML(ctx context.Context, sugar *zap.SugaredLogger, storage models.GeneralStorageInterface) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		metricsString := storage.String()
+		metricsString := storage.String(ctx)
 		html := "<html><head><title>Metrics</title>" +
 			"<style>body { background-color: black; color: white; font-size: 1.2rem; line-height: 1.5rem }</style>" +
 			"</head><body><pre>" +

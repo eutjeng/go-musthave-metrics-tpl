@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"testing"
 )
 
@@ -29,14 +30,14 @@ func TestInMemoryStorage(t *testing.T) {
 
 			t.Run("UpdateAndCheckCounters", func(t *testing.T) {
 				for name, value := range tt.counterUpdates {
-					err := s.UpdateCounter(name, value, false)
+					err := s.UpdateCounter(context.TODO(), name, value, false)
 					if err != nil {
 						t.Errorf("UpdateCounter() error = %v", err)
 					}
 				}
 
 				for name, value := range tt.counterUpdates {
-					retrievedValue, err := s.GetCounter(name)
+					retrievedValue, err := s.GetCounter(context.TODO(), name)
 					if err != nil {
 						t.Errorf("GetCounter() error = %v", err)
 					}
@@ -49,14 +50,14 @@ func TestInMemoryStorage(t *testing.T) {
 
 			t.Run("UpdateAndCheckGauges", func(t *testing.T) {
 				for name, value := range tt.gaugeUpdates {
-					err := s.UpdateGauge(name, value, false)
+					err := s.UpdateGauge(context.TODO(), name, value, false)
 					if err != nil {
 						t.Errorf("UpdateGauge() error = %v", err)
 					}
 				}
 
 				for name, value := range tt.gaugeUpdates {
-					retrievedValue, err := s.GetGauge(name)
+					retrievedValue, err := s.GetGauge(context.TODO(), name)
 					if err != nil {
 						t.Errorf("GetGauge() error = %v", err)
 					}
@@ -68,21 +69,21 @@ func TestInMemoryStorage(t *testing.T) {
 			})
 
 			t.Run("TestNonExistentCounter", func(t *testing.T) {
-				_, err := s.GetCounter("nonExistentCounter")
+				_, err := s.GetCounter(context.TODO(), "nonExistentCounter")
 				if err == nil {
 					t.Errorf("Expected an error for non-existent counter")
 				}
 			})
 
 			t.Run("TestNonExistentGauge", func(t *testing.T) {
-				_, err := s.GetGauge("nonExistentGauge")
+				_, err := s.GetGauge(context.TODO(), "nonExistentGauge")
 				if err == nil {
 					t.Errorf("Expected an error for non-existent gauge")
 				}
 			})
 
 			t.Run("TestStringMethod", func(t *testing.T) {
-				str := s.String()
+				str := s.String(context.TODO())
 				if len(str) == 0 {
 					t.Errorf("String method returned an empty string")
 				}

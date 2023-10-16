@@ -39,7 +39,7 @@ func main() {
 		sugar.Fatalf("Failed to initialize storage: %v", errInit)
 	}
 
-	srv := appinit.InitServer(cfg, router.SetupRouter(sugar, store, cfg.StoreInterval == 0))
+	srv := appinit.InitServer(cfg, router.SetupRouter(ctx, sugar, store, cfg.StoreInterval == 0))
 
 	quitChan, signalChan := appinit.InitSignalHandling()
 
