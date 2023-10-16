@@ -47,9 +47,9 @@ func InitServer(cfg *config.Config, r http.Handler) *http.Server {
 // InitDataSave configures the data storage mechanism based on the provided configuration
 func InitDataSave(sugar *zap.SugaredLogger, storage *storage.InMemoryStorage, cfg *config.Config) {
 	if cfg.StoreInterval == 0 {
-		filestorage.StartSyncSave(sugar, storage, cfg.FileStoragePath)
+		filestorage.StartSyncSave(sugar, cfg, storage)
 	} else {
-		filestorage.StartPeriodicSave(sugar, storage, cfg.StoreInterval, cfg.FileStoragePath)
+		filestorage.StartPeriodicSave(sugar, cfg, storage)
 	}
 }
 

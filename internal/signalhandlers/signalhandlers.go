@@ -19,7 +19,7 @@ func HandleSignals(signalChan <-chan os.Signal, quitChan chan<- struct{}, store 
 	<-signalChan
 
 	if s, ok := store.(storage.Interface); ok {
-		if err := filestorage.SaveToFile(s, cfg.FileStoragePath); err != nil {
+		if err := filestorage.SaveToFile(cfg, s); err != nil {
 			sugar.Errorf("Error when saving data to file: %v", err)
 		}
 	} else {

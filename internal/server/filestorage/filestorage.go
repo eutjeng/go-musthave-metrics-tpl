@@ -17,7 +17,11 @@ type SerializedMetrics struct {
 }
 
 // SaveToFile saves metrics to a file. Directories are created if they do not exist
-func SaveToFile(storage storage.Interface, filename string) error {
+func SaveToFile(cfg *config.Config, storage storage.Interface) error {
+	if !cfg.Restore {
+		return nil
+	}
+
 	gauges, counters := storage.GetMetricsData()
 
 	data := SerializedMetrics{
@@ -30,12 +34,12 @@ func SaveToFile(storage storage.Interface, filename string) error {
 		return err
 	}
 
-	dir := filepath.Dir(filename)
+	dir := filepath.Dir(cfg.FileStoragePath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err
 	}
 
-	return os.WriteFile(filename, jsonData, 0644)
+	return os.WriteFile(cfg.FileStoragePath, jsonData, 0644)
 }
 
 // LoadFromFile loads metrics from a file. If the file does not exist, no error is returned
@@ -66,10 +70,10 @@ func RestoreData(sugar *zap.SugaredLogger, storage *storage.InMemoryStorage, cfg
 }
 
 // StartSyncSave starts a goroutine that saves metrics to a file whenever an update occurs
-func StartSyncSave(sugar *zap.SugaredLogger, storage *storage.InMemoryStorage, filename string) {
+func StartSyncSave(sugar *zap.SugaredLogger, cfg *config.Config, storage *storage.InMemoryStorage) {
 	go func() {
 		for range storage.GetUpdateChannel() {
-			if err := SaveToFile(storage, filename); err != nil {
+			if err := SaveToFile(cfg, storage); err != nil {
 				sugar.Errorf("Error when saving a file: %v", err)
 			}
 		}
@@ -77,13 +81,13 @@ func StartSyncSave(sugar *zap.SugaredLogger, storage *storage.InMemoryStorage, f
 }
 
 // StartPeriodicSave starts a goroutine that saves metrics to a file at regular intervals
-func StartPeriodicSave(sugar *zap.SugaredLogger, storage *storage.InMemoryStorage, interval time.Duration, filename string) {
+func StartPeriodicSave(sugar *zap.SugaredLogger, cfg *config.Config, storage *storage.InMemoryStorage) {
 	go func() {
-		ticker := time.NewTicker(interval)
+		ticker := time.NewTicker(cfg.StoreInterval)
 		defer ticker.Stop()
 
 		for range ticker.C {
-			if err := SaveToFile(storage, filename); err != nil {
+			if err := SaveToFile(cfg, storage); err != nil {
 				sugar.Errorf("Error when saving a file: %v", err)
 			}
 		}
