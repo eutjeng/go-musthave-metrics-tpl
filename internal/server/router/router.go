@@ -30,7 +30,6 @@ func SetupRouter(sugar *zap.SugaredLogger, store models.GeneralStorageInterface,
 	})
 
 	if s, ok := store.(dbstorage.Interface); ok {
-		sugar.Info("Setting up route for /ping")
 		r.Get("/ping", dbhandlers.PingHandler(sugar, s))
 	} else {
 		sugar.Warn("Store does not support ping")
