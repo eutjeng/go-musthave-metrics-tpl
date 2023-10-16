@@ -34,7 +34,7 @@ func SetupRouter(ctx context.Context, sugar *zap.SugaredLogger, store models.Gen
 	if s, ok := store.(dbstorage.Interface); ok {
 		r.Get("/ping", dbhandlers.PingHandler(sugar, s))
 	} else {
-		sugar.Warn("Store does not support ping")
+		sugar.Warn("Store does not support dbhandlers")
 	}
 
 	return r
