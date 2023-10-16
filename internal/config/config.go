@@ -29,7 +29,7 @@ const (
 	defaultAddr            = ":8080"
 	defaultEnvironment     = "development"
 	defaultFileStoragePath = "/tmp/metrics-db.json"
-	defaultDBDSN           = "postgres://localhost:5432/metricsbase?sslmode=disable"
+	defaultDBDSN           = "postgres://postgres:postgres@postgres:5432/metricsbase?sslmode=disable"
 	defaultRestore         = true
 	defaultReportInterval  = 10  // in seconds
 	defaultPollInterval    = 2   // in seconds
@@ -70,9 +70,9 @@ func loadFromFlags(cfg *Config) error {
 	addr := flagSet.String("a", defaultAddr, "Specify the address and port on which the server will run")
 	env := flagSet.String("e", defaultEnvironment, "Specify the application's environment. Possible values are 'development' or 'production'")
 	fileStoragePath := flagSet.String("f", defaultFileStoragePath, "Specify the filename where current metric values will be saved")
-	restore := flagSet.Bool("rs", defaultRestore, "Enable or disable the restoration of previously saved values from a file upon server startup")
+	restore := flagSet.Bool("r", defaultRestore, "Enable or disable the restoration of previously saved values from a file upon server startup")
 	pollInterval := flagSet.Int64("p", defaultPollInterval, "Set the interval for polling metrics from the runtime package, in seconds")
-	reportInterval := flagSet.Int64("r", defaultReportInterval, "Set the interval for sending metrics to the server, in seconds")
+	reportInterval := flagSet.Int64("ri", defaultReportInterval, "Set the interval for sending metrics to the server, in seconds")
 	storeInterval := flagSet.Int64("i", defaultStoreInterval, "Set the interval for saving the current server metrics to disk, in seconds")
 	readTimeout := flagSet.Int64("rt", defaultReadTimeout, "Specify the read timeout for the server, in seconds")
 	writeTimeout := flagSet.Int64("wt", defaultWriteTimeout, "Specify the write timeout for the server, in seconds")

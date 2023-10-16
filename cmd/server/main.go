@@ -1,50 +1,61 @@
 package main
 
 import (
+	"context"
 	"log"
+	"sync"
 
 	_ "github.com/lib/pq"
 
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/appinit"
-	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/dbstorage"
-	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/filestorage"
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/models"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/router"
-	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/storage"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/signalhandlers"
 )
 
 func main() {
+	var wg sync.WaitGroup
+
 	cfg, sugar, syncFunc, err := appinit.InitApp()
 	if err != nil {
 		log.Fatalf("Failed to initialize app: %s", err)
 	}
 	defer syncFunc()
 
-	storage := storage.NewInMemoryStorage()
-	dbStorage, err := dbstorage.NewDBStorage(cfg.DBDSN)
-	if err != nil {
-		sugar.Fatalf("Failed to connect to database: %v", err)
+	var store models.GeneralStorageInterface
+	var errInit error
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	if cfg.DBDSN != "" {
+		wg.Add(1)
+		store, errInit = appinit.InitDBStorage(ctx, cfg, sugar, &wg)
+	} else {
+		store, errInit = appinit.InitInMemoryStorage(cfg, sugar)
 	}
 
-	srv := appinit.InitServer(cfg, router.SetupRouter(sugar, storage, dbStorage, cfg.StoreInterval == 0))
+	if errInit != nil {
+		sugar.Fatalf("Failed to initialize storage: %v", errInit)
+	}
 
-	filestorage.RestoreData(sugar, storage, cfg)
-	appinit.InitDataSave(sugar, storage, cfg)
+	srv := appinit.InitServer(cfg, router.SetupRouter(sugar, store, cfg.StoreInterval == 0))
 
 	quitChan, signalChan := appinit.InitSignalHandling()
-	go signalhandlers.HandleSignals(signalChan, quitChan, storage, cfg, sugar)
-	errChan := make(chan error)
 
+	go signalhandlers.HandleSignals(signalChan, quitChan, store, cfg, sugar)
+
+	errChan := make(chan error)
 	appinit.StartServer(srv, errChan)
 
-	doneChan := make(chan struct{})
 	go func() {
 		signalhandlers.HandleServerErrors(errChan, sugar, cfg)
-		doneChan <- struct{}{}
 	}()
+
+	wg.Add(1)
 	go func() {
-		signalhandlers.HandleShutdownServer(quitChan, srv, sugar)
-		doneChan <- struct{}{}
+		signalhandlers.HandleShutdownServer(ctx, quitChan, srv, sugar, &wg, cancel)
+
 	}()
-	<-doneChan
+	wg.Wait()
 }

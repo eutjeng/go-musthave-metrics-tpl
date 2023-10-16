@@ -17,7 +17,7 @@ type SerializedMetrics struct {
 }
 
 // SaveToFile saves metrics to a file. Directories are created if they do not exist
-func SaveToFile(storage *storage.InMemoryStorage, filename string) error {
+func SaveToFile(storage storage.Interface, filename string) error {
 	gauges, counters := storage.GetMetricsData()
 
 	data := SerializedMetrics{

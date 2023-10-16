@@ -8,9 +8,9 @@ import (
 )
 
 // PingHandler checks database connection
-func PingHandler(sugar *zap.SugaredLogger, dbStorage dbstorage.StorageInterface) http.HandlerFunc {
+func PingHandler(sugar *zap.SugaredLogger, storage dbstorage.Interface) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		err := dbStorage.Ping()
+		err := storage.Ping()
 		if err != nil {
 			sugar.Errorf("Database ping failed: %s", err)
 			http.Error(w, "Internal Server Error", 500)
