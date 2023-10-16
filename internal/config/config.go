@@ -137,16 +137,24 @@ func getDurationFields(cfg *Config) map[string]string {
 
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
+		envName := field.Tag.Get("env")
+		if envName == "" {
+			continue
+		}
+
+		envValue := os.Getenv(envName)
+		if envValue == "" {
+			continue
+		}
+
 		if field.Type == reflect.TypeOf(time.Duration(0)) {
-			envName := field.Tag.Get("env")
-			if envName != "" {
-				envValue := os.Getenv(envName)
-				if envValue != "" {
-					envVars[envName] = envValue + "s"
-				}
-			}
+			envVars[envName] = envValue + "s"
+		} else {
+			envVars[envName] = envValue
 		}
 	}
+
+	fmt.Print(envVars)
 
 	return envVars
 }
