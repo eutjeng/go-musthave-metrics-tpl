@@ -72,7 +72,7 @@ func StartServer(srv *http.Server, errChan chan error) {
 // InitDBStorage initializes a database storage based on the provided configuration and logger
 // it returns an instance of dbstorage.StorageInterface or an error if any step in the initialization fails
 func InitDBStorage(ctx context.Context, cfg *config.Config, sugar *zap.SugaredLogger, wg *sync.WaitGroup) (dbstorage.Interface, error) {
-	dbStorage, err := dbstorage.NewDBStorage(ctx, cfg.DBDSN)
+	dbStorage, err := dbstorage.NewDBStorage(cfg.DBDSN)
 	if err != nil {
 		return nil, err
 	}
