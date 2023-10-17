@@ -30,6 +30,9 @@ type Config struct {
 	ReadTimeout     time.Duration `env:"READ_TIMEOUT"`      // read timeout for the server, in seconds
 	WriteTimeout    time.Duration `env:"WRITE_TIMEOUT"`     // write timeout for the server, in seconds
 	IdleTimeout     time.Duration `env:"IDLE_TIMEOUT"`      // idle timeout for server connections, in seconds
+	MaxRetries      int           `env:"MAX_RETRIES"`       // maximum number of retries for the operation
+	InitialDelay    time.Duration `env:"INITIAL_DELAY"`     // initial delay before the first retry attempt, in seconds
+	DelayIncrement  time.Duration `env:"DELAY_INCREMENT"`   // incremental delay between retries, in seconds
 }
 
 type PostParseSetter func(*Config)
@@ -51,6 +54,9 @@ const (
 	defaultMaxOpenConns    = 25  // in seconds
 	defaultMaxIdleConns    = 25  // in seconds
 	defaultConnMaxLifetime = 300 // in seconds
+	defaultInitialDelay    = 1   // in seconds
+	defaultMaxRetries      = 3   // in seconds
+	defaultDelayIncrement  = 1   // in seconds
 )
 
 // loadAndParseFlags is responsible for configuring, parsing, and validating
@@ -140,6 +146,9 @@ func loadServerFlags(flagSet *flag.FlagSet, cfg *Config) PostParseSetter {
 	maxOpenConns := flagSet.Int("mo", defaultMaxOpenConns, "Specify the maximum number of open database connections")
 	maxIdleConns := flagSet.Int("mi", defaultMaxIdleConns, "Specify the maximum number of idle database connections")
 	connMaxLifetime := flagSet.Int64("ml", defaultConnMaxLifetime, "Specify the maximum lifetime of a database connection, in seconds")
+	initialDelay := flagSet.Int64("id", defaultInitialDelay, "Initial delay before the first retry attempt, in seconds")
+	maxRetries := flagSet.Int("mr", defaultMaxRetries, "Maximum number of retries for the operation")
+	delayIncrement := flagSet.Int64("di", defaultDelayIncrement, "Incremental delay between retries, in seconds")
 
 	return func(cfg *Config) {
 		cfg.ReadTimeout = time.Duration(*readTimeout) * time.Second
@@ -152,6 +161,9 @@ func loadServerFlags(flagSet *flag.FlagSet, cfg *Config) PostParseSetter {
 		cfg.MaxOpenConns = *maxOpenConns
 		cfg.MaxIdleConns = *maxIdleConns
 		cfg.ConnMaxLifetime = time.Duration(*connMaxLifetime) * time.Second
+		cfg.InitialDelay = time.Duration(*initialDelay) * time.Second
+		cfg.MaxRetries = *maxRetries
+		cfg.DelayIncrement = time.Duration(*delayIncrement) * time.Second
 	}
 }
 
