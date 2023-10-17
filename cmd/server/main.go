@@ -16,7 +16,7 @@ import (
 func main() {
 	var wg sync.WaitGroup
 
-	cfg, sugar, syncFunc, err := appinit.InitApp()
+	cfg, sugar, syncFunc, err := appinit.InitServerApp()
 	if err != nil {
 		log.Fatalf("Failed to initialize app: %s", err)
 	}

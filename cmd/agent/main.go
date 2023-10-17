@@ -14,7 +14,7 @@ func main() {
 	var randomValue float64
 
 	client := resty.New()
-	cfg, sugar, syncFunc, err := appinit.InitApp()
+	cfg, sugar, syncFunc, err := appinit.InitAgentApp()
 	if err != nil {
 		log.Fatalf("Failed to initialize app: %s", err)
 	}

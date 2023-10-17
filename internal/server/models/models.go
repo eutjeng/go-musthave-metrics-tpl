@@ -33,4 +33,6 @@ type GeneralStorageInterface interface {
 	// String returns a stringified representation of the metrics stored
 	// this is primarily useful for debugging or logging purposes
 	String(ctx context.Context) string
+
+	SaveMetrics(ctx context.Context, metrics []Metrics, shouldNotify bool) error
 }

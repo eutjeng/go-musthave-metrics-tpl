@@ -116,6 +116,32 @@ func (s *InMemoryStorage) String(ctx context.Context) string {
 	return result.String()
 }
 
+func (s *InMemoryStorage) SaveMetrics(ctx context.Context, metrics []models.Metrics, shouldNotify bool) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for _, metric := range metrics {
+		switch metric.MType {
+		case "gauge":
+			if metric.Value == nil {
+				return fmt.Errorf("value not provided for gauge: %s", metric.ID)
+			}
+			s.gauges[metric.ID] = *metric.Value
+		case "counter":
+			if metric.Delta == nil {
+				return fmt.Errorf("delta not provided for counter: %s", metric.ID)
+			}
+			s.counter[metric.ID] += *metric.Delta
+		default:
+			return fmt.Errorf("unknown metric type: %s", metric.MType)
+		}
+	}
+
+	s.notifyUpdate(shouldNotify)
+
+	return nil
+}
+
 // GetUpdateChannel returns the update channel for this storage
 // This channel is used to notify about updates in storage
 func (s *InMemoryStorage) GetUpdateChannel() chan struct{} {

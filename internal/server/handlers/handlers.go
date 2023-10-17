@@ -98,6 +98,7 @@ func HandleUpdateMetric(ctx context.Context, sugar *zap.SugaredLogger, storage m
 		}
 
 		if err != nil {
+			sugar.Errorf("Failed to update metric: %v", err)
 			http.Error(w, "Failed to update metric", http.StatusInternalServerError)
 			return
 		}
@@ -201,6 +202,45 @@ func HandleGetMetric(ctx context.Context, sugar *zap.SugaredLogger, storage mode
 		if _, err := io.WriteString(w, fmt.Sprint(v)); err != nil {
 			sugar.Errorw("Cannot write to response body", err)
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		}
+	}
+}
+
+// HandleSaveMetrics is an HTTP handler that saves a batch of metrics in the storage
+func HandleSaveMetrics(ctx context.Context, sugar *zap.SugaredLogger, storage models.GeneralStorageInterface, shouldNotify bool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var metrics []models.Metrics
+
+		decoder := json.NewDecoder(r.Body)
+		err := decoder.Decode(&metrics)
+		if err != nil {
+			http.Error(w, "Bad Request", http.StatusBadRequest)
+			return
+		}
+
+		err = storage.SaveMetrics(ctx, metrics, shouldNotify)
+		if err != nil {
+			sugar.Errorw("Failed to save metrics", err)
+			http.Error(w, fmt.Sprintf("Failed to save metrics: %s", err.Error()), http.StatusBadRequest)
+			return
+		}
+
+		if r.Header.Get("Content-Type") == "application/json" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+
+			jsonData := struct {
+				Zero []models.Metrics `json:"0"`
+			}{
+				Zero: metrics,
+			}
+
+			if err := json.NewEncoder(w).Encode(jsonData); err != nil {
+				sugar.Errorw("Cannot encode response JSON body", err)
+				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			}
+		} else {
+			w.WriteHeader(http.StatusOK)
 		}
 	}
 }

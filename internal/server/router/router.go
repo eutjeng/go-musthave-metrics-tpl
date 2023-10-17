@@ -26,6 +26,10 @@ func SetupRouter(ctx context.Context, sugar *zap.SugaredLogger, store models.Gen
 		r.Post("/", handlers.HandleUpdateMetric(ctx, sugar, store, shouldNotify))
 	})
 
+	r.Route("/updates", func(r chi.Router) {
+		r.Post("/", handlers.HandleSaveMetrics(ctx, sugar, store, shouldNotify))
+	})
+
 	r.Route("/value", func(r chi.Router) {
 		r.Get("/{type}/{name}", handlers.HandleGetMetric(ctx, sugar, store))
 		r.Post("/", handlers.HandleGetMetric(ctx, sugar, store))
@@ -34,7 +38,7 @@ func SetupRouter(ctx context.Context, sugar *zap.SugaredLogger, store models.Gen
 	if s, ok := store.(dbstorage.Interface); ok {
 		r.Get("/ping", dbhandlers.PingHandler(sugar, s))
 	} else {
-		sugar.Warn("Store does not support dbhandlers")
+		sugar.Warn("Store does not support /ping route")
 	}
 
 	return r
