@@ -10,13 +10,26 @@ import (
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/utils"
 )
 
-// Interface is an interface that provides methods for manipulating
-// various types of metrics such as gauges and counters
+// Interface provides methods for manipulating and accessing metrics data.
+// It extends models.GeneralStorageInterface and adds additional utility methods.
+// This interface is intended for handling various types of metrics, such as gauges and counters.
 type Interface interface {
+	// Embedded interface for general metric storage operations
 	models.GeneralStorageInterface
+
+	// GetMetricsData retrieves all stored gauge and counter metrics.
+	// It returns two maps: one for gauges and one for counters.
 	GetMetricsData() (map[string]float64, map[string]int64)
+
+	// SetMetricsData sets the entire metrics data for gauges and counters.
+	// It replaces the existing data with the given maps for gauges and counters.
 	SetMetricsData(gauges map[string]float64, counters map[string]int64)
+
+	// GetUpdateChannel returns a channel that can be used to listen for updates to the metrics data.
 	GetUpdateChannel() chan struct{}
+
+	// notifyUpdate is an internal method used to trigger update notifications.
+	// It sends a notification to the update channel if 'shouldNotify' is true.
 	notifyUpdate(shouldNotify bool)
 }
 
@@ -116,6 +129,7 @@ func (s *InMemoryStorage) String(ctx context.Context) string {
 	return result.String()
 }
 
+// SaveMetrics saves a slice of Metrics in a single transaction
 func (s *InMemoryStorage) SaveMetrics(ctx context.Context, metrics []models.Metrics, shouldNotify bool) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
