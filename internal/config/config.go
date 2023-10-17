@@ -97,7 +97,13 @@ func loadAndParseFlags(cfg *Config, setters ...FlagSetter) error {
 
 	// Validate the environment setting as a final step.
 	if !isValidEnvironment(cfg.Environment) {
-		return fmt.Errorf("invalid environment: %s. Possible values are 'development' or 'production'", cfg.Environment)
+		return fmt.Errorf(
+			"invalid environment: %s. Possible values are '%s' or '%s'",
+			cfg.Environment,
+			defaultEnvironmentDev,
+			defaultEnvironmentProd,
+		)
+
 	}
 
 	return nil
@@ -182,10 +188,6 @@ func ParseAgentConfig() (*Config, error) {
 func loadFromEnv(cfg *Config) error {
 	if err := parseEnvWithDuration(cfg); err != nil {
 		return err
-	}
-
-	if !isValidEnvironment(cfg.Environment) {
-		return fmt.Errorf("invalid environment: %s. Possible values are 'development' or 'production'", cfg.Environment)
 	}
 
 	return nil
