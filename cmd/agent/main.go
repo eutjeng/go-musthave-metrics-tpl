@@ -5,8 +5,7 @@ import (
 	"time"
 
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/agent/metrics"
-	"github.com/eutjeng/go-musthave-metrics-tpl/internal/config"
-	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/logger"
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/appinit"
 	"github.com/go-resty/resty/v2"
 )
 
@@ -15,15 +14,9 @@ func main() {
 	var randomValue float64
 
 	client := resty.New()
-	cfg, err := config.ParseConfig()
-
+	cfg, sugar, syncFunc, err := appinit.InitApp()
 	if err != nil {
-		log.Fatalf("Error while parsing config: %s", err)
-	}
-
-	sugar, syncFunc, err := logger.InitLogger(cfg)
-	if err != nil {
-		log.Fatalf("Failed to initialize logger: %s", err)
+		log.Fatalf("Failed to initialize app: %s", err)
 	}
 	defer syncFunc()
 

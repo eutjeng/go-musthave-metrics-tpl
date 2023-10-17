@@ -2,38 +2,41 @@ package main
 
 import (
 	"log"
-	"net/http"
 
-	"github.com/eutjeng/go-musthave-metrics-tpl/internal/config"
-	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/logger"
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/appinit"
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/filestorage"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/router"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/storage"
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/signalhandlers"
 )
 
 func main() {
-	cfg, err := config.ParseConfig()
+	cfg, sugar, syncFunc, err := appinit.InitApp()
 	if err != nil {
-		log.Fatalf("Error while parsing config: %s", err)
-	}
-
-	sugar, syncFunc, err := logger.InitLogger(cfg)
-	if err != nil {
-		log.Fatalf("Failed to initialize logger: %s", err)
+		log.Fatalf("Failed to initialize app: %s", err)
 	}
 	defer syncFunc()
 
 	storage := storage.NewInMemoryStorage()
-	r := router.SetupRouter(sugar, storage)
+	srv := appinit.InitServer(cfg, router.SetupRouter(sugar, storage, cfg.StoreInterval == 0))
 
-	srv := &http.Server{
-		Addr:         cfg.Addr,
-		Handler:      r,
-		ReadTimeout:  cfg.ReadTimeout,
-		WriteTimeout: cfg.WriteTimeout,
-		IdleTimeout:  cfg.IdleTimeout,
-	}
+	filestorage.RestoreData(sugar, storage, cfg)
+	appinit.InitDataSave(sugar, storage, cfg)
 
-	if err = srv.ListenAndServe(); err != nil {
-		sugar.Fatalf("Failed to start HTTP server on address %s: %s", cfg.Addr, err)
-	}
+	quitChan, signalChan := appinit.InitSignalHandling()
+	go signalhandlers.HandleSignals(signalChan, quitChan, storage, cfg, sugar)
+	errChan := make(chan error)
+
+	appinit.StartServer(srv, errChan)
+
+	doneChan := make(chan struct{})
+	go func() {
+		signalhandlers.HandleServerErrors(errChan, sugar, cfg)
+		doneChan <- struct{}{}
+	}()
+	go func() {
+		signalhandlers.HandleShutdownServer(quitChan, srv, sugar)
+		doneChan <- struct{}{}
+	}()
+	<-doneChan
 }

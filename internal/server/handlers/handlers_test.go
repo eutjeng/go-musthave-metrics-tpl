@@ -21,7 +21,7 @@ func TestHandleUpdateAndGetMetrics(t *testing.T) {
 	r := chi.NewRouter()
 	sugar := zap.NewExample().Sugar()
 
-	r.HandleFunc("/update", handlers.HandleUpdateMetric(sugar, storage))
+	r.HandleFunc("/update", handlers.HandleUpdateMetric(sugar, storage, false))
 	r.HandleFunc("/value", handlers.HandleGetMetric(sugar, storage))
 
 	ts := httptest.NewServer(r)
@@ -87,8 +87,8 @@ func TestHandleMetricsHTML(t *testing.T) {
 	storage := storage.NewInMemoryStorage()
 	sugar := zap.NewExample().Sugar()
 
-	_ = storage.UpdateGauge("testGauge", 42.2)
-	_ = storage.UpdateCounter("testCounter", 42)
+	_ = storage.UpdateGauge("testGauge", 42.2, false)
+	_ = storage.UpdateCounter("testCounter", 42, false)
 
 	r := chi.NewRouter()
 	r.Get("/", handlers.HandleMetricsHTML(sugar, storage))

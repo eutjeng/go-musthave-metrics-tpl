@@ -92,7 +92,7 @@ func WithLogging(sugar *zap.SugaredLogger) func(http.Handler) http.Handler {
 	}
 }
 
-// getSyncFunc returns a function to synchronize and close the logger.
+// getSyncFunc returns a function to synchronize and close the logger
 func getSyncFunc(logger *zap.Logger) func() {
 	return func() {
 		if err := logger.Sync(); err != nil {
@@ -101,7 +101,7 @@ func getSyncFunc(logger *zap.Logger) func() {
 	}
 }
 
-// initLogger initializes and returns SugaredLogger and a function to synchronize it.
+// initLogger initializes and returns SugaredLogger and a function to synchronize it
 func InitLogger(cfg *config.Config) (*zap.SugaredLogger, func(), error) {
 	var zapLogger *zap.Logger
 	var err error

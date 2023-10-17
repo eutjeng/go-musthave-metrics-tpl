@@ -29,7 +29,7 @@ func TestInMemoryStorage(t *testing.T) {
 
 			t.Run("UpdateAndCheckCounters", func(t *testing.T) {
 				for name, value := range tt.counterUpdates {
-					err := s.UpdateCounter(name, value)
+					err := s.UpdateCounter(name, value, false)
 					if err != nil {
 						t.Errorf("UpdateCounter() error = %v", err)
 					}
@@ -49,7 +49,7 @@ func TestInMemoryStorage(t *testing.T) {
 
 			t.Run("UpdateAndCheckGauges", func(t *testing.T) {
 				for name, value := range tt.gaugeUpdates {
-					err := s.UpdateGauge(name, value)
+					err := s.UpdateGauge(name, value, false)
 					if err != nil {
 						t.Errorf("UpdateGauge() error = %v", err)
 					}
