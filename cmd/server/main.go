@@ -28,11 +28,11 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	if cfg.DBDSN != "" {
+	if cfg.DBDSN == "" {
+		store, errInit = appinit.InitInMemoryStorage(cfg, sugar)
+	} else {
 		wg.Add(1)
 		store, errInit = appinit.InitDBStorage(ctx, cfg, sugar, &wg)
-	} else {
-		store, errInit = appinit.InitInMemoryStorage(cfg, sugar)
 	}
 
 	if errInit != nil {
