@@ -12,8 +12,8 @@ import (
 )
 
 func CustomTimeEncoder(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
-	zone, _ := t.Zone()
-	enc.AppendString(t.Format("01.02.2006 15:04:05 ") + zone)
+	t = t.UTC()
+	enc.AppendString(t.Format("01.02.2006 15:04:05 UTC"))
 }
 
 func SplitPath(path string) []string {
