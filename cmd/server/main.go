@@ -15,15 +15,14 @@ import (
 
 func main() {
 	var wg sync.WaitGroup
+	var store models.GeneralStorageInterface
+	var errInit error
 
 	cfg, sugar, syncFunc, err := appinit.InitServerApp()
 	if err != nil {
 		log.Fatalf("Failed to initialize app: %s", err)
 	}
 	defer syncFunc()
-
-	var store models.GeneralStorageInterface
-	var errInit error
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -33,6 +32,7 @@ func main() {
 	} else {
 		wg.Add(1)
 		store, errInit = appinit.InitDBStorage(ctx, cfg, sugar, &wg)
+
 	}
 
 	if errInit != nil {
