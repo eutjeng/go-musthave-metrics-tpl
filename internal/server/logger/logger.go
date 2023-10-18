@@ -13,6 +13,7 @@ import (
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/config"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/constants"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/models"
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/utils"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -123,7 +124,7 @@ func InitLogger(cfg *config.Config) (*zap.SugaredLogger, func(), error) {
 	} else {
 		encoderConfig := zap.NewDevelopmentEncoderConfig()
 		encoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
-		encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+		encoderConfig.EncodeTime = utils.CustomTimeEncoder
 		encoderConfig.EncodeDuration = zapcore.StringDurationEncoder
 
 		encoder := zapcore.NewConsoleEncoder(encoderConfig)

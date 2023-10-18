@@ -46,7 +46,7 @@ func main() {
 	go signalhandlers.HandleSignals(signalChan, quitChan, store, cfg, sugar)
 
 	errChan := make(chan error)
-	appinit.StartServer(srv, errChan)
+	appinit.StartServer(sugar, srv, errChan)
 
 	go func() {
 		signalhandlers.HandleServerErrors(errChan, sugar, cfg)
