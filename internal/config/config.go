@@ -15,6 +15,7 @@ type Config struct {
 	Addr            string        `env:"ADDRESS"`           // the address and port on which the server will run
 	Environment     string        `env:"ENVIRONMENT"`       // the application's environment, can be 'development' or 'production'
 	FileStoragePath string        `env:"FILE_STORAGE_PATH"` // the filename where the current metrics are saved
+	DBDSN           string        `env:"DATABASE_DSN"`      // the Data Source Name for connecting to the database
 	Restore         bool          `env:"RESTORE"`           // whether to restore previously saved values from a file upon server startup
 	ReportInterval  time.Duration `env:"REPORT_INTERVAL"`   // interval for sending metrics to the server, in seconds
 	PollInterval    time.Duration `env:"POLL_INTERVAL"`     // interval for polling metrics from the runtime package, in seconds
@@ -28,6 +29,7 @@ const (
 	defaultAddr            = ":8080"
 	defaultEnvironment     = "development"
 	defaultFileStoragePath = "/tmp/metrics-db.json"
+	defaultDBDSN           = "postgres://localhost:5432/metricsbase?sslmode=disable"
 	defaultRestore         = true
 	defaultReportInterval  = 10  // in seconds
 	defaultPollInterval    = 2   // in seconds
@@ -75,6 +77,7 @@ func loadFromFlags(cfg *Config) error {
 	readTimeout := flagSet.Int64("rt", defaultReadTimeout, "Specify the read timeout for the server, in seconds")
 	writeTimeout := flagSet.Int64("wt", defaultWriteTimeout, "Specify the write timeout for the server, in seconds")
 	idleTimeout := flagSet.Int64("it", defaultIdleTimeout, "Specify the idle timeout for server connections, in seconds")
+	DBDSN := flagSet.String("d", defaultDBDSN, "Specify the Data Source Name for connecting to the database")
 
 	if err := flagSet.Parse(os.Args[1:]); err != nil {
 		return fmt.Errorf("failed to parse flags: %w", err)
@@ -90,6 +93,7 @@ func loadFromFlags(cfg *Config) error {
 	cfg.WriteTimeout = time.Duration(*writeTimeout) * time.Second
 	cfg.IdleTimeout = time.Duration(*idleTimeout) * time.Second
 	cfg.StoreInterval = time.Duration(*storeInterval) * time.Second
+	cfg.DBDSN = *DBDSN
 
 	if !isValidEnvironment(cfg.Environment) {
 		return fmt.Errorf("invalid environment: %s. Possible values are 'development' or 'production'", cfg.Environment)

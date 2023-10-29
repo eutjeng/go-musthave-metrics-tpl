@@ -3,7 +3,10 @@ package main
 import (
 	"log"
 
+	_ "github.com/lib/pq"
+
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/appinit"
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/dbstorage"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/filestorage"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/router"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/storage"
@@ -18,7 +21,12 @@ func main() {
 	defer syncFunc()
 
 	storage := storage.NewInMemoryStorage()
-	srv := appinit.InitServer(cfg, router.SetupRouter(sugar, storage, cfg.StoreInterval == 0))
+	dbStorage, err := dbstorage.NewDBStorage(cfg.DBDSN)
+	if err != nil {
+		sugar.Fatalf("Failed to connect to database: %v", err)
+	}
+
+	srv := appinit.InitServer(cfg, router.SetupRouter(sugar, storage, dbStorage, cfg.StoreInterval == 0))
 
 	filestorage.RestoreData(sugar, storage, cfg)
 	appinit.InitDataSave(sugar, storage, cfg)
