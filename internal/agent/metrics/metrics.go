@@ -11,6 +11,7 @@ import (
 
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/config"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/constants"
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/hash"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/models"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/utils"
 	"github.com/go-resty/resty/v2"
@@ -59,37 +60,58 @@ func collectMemoryMetrics() map[string]float64 {
 	}
 }
 
-func reportMetrics(sugar *zap.SugaredLogger, url string, client *resty.Client, res []models.Metrics) {
-	jsonData, err := json.Marshal(res)
-
-	if err != nil {
-		sugar.Errorw("JSON marshaling failed", err)
-	}
-
+func compressData(data []byte) ([]byte, error) {
 	var b bytes.Buffer
 	gz := gzip.NewWriter(&b)
-	if _, gzErr := gz.Write(jsonData); gzErr != nil {
-		sugar.Errorw("Failed to write gzipped JSON data", err)
-		return
+	if _, err := gz.Write(data); err != nil {
+		return nil, err
 	}
-	if gzErr := gz.Close(); gzErr != nil {
-		sugar.Errorw("Failed to close gzip writer", err)
-		return
+	if err := gz.Close(); err != nil {
+		return nil, err
 	}
+	return b.Bytes(), nil
+}
+
+func sendRequestWithHashing(cfg *config.Config, sugar *zap.SugaredLogger, client *resty.Client, url string, compressedBody []byte, hash string) error {
+	sugar.Infof("request hash: %s", hash)
 
 	resp, err := client.R().
 		SetHeader("Content-Type", "application/json").
 		SetHeader("Content-Encoding", "gzip").
-		SetBody(b.Bytes()).
+		SetHeader("HashSHA256", hash).
+		SetBody(compressedBody).
 		Post(url)
 
 	if err != nil {
-		sugar.Errorw("Error sending request for metric", err)
-		return
+		sugar.Errorw("error sending request for metric", "error", err)
+		return err
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		sugar.Errorw("Received non-OK response for metric", resp.Status())
+		sugar.Errorw("received non-OK response for metric", "status", resp.Status())
+		return fmt.Errorf("received non-OK response: %s", resp.Status())
+	}
+
+	return nil
+}
+
+func reportMetrics(cfg *config.Config, sugar *zap.SugaredLogger, url string, client *resty.Client, res []models.Metrics) {
+	jsonData, err := json.Marshal(res)
+	if err != nil {
+		sugar.Errorw("json marshaling failed", "error", err)
+		return
+	}
+
+	hash := hash.ComputeHash(jsonData, cfg.Key)
+
+	compressedData, err := compressData(jsonData)
+	if err != nil {
+		sugar.Errorw("failed to compress json data", "error", err)
+		return
+	}
+
+	if err := sendRequestWithHashing(cfg, sugar, client, url, compressedData, hash); err != nil {
+		sugar.Errorw("failed to send request with hashing", "error", err)
 	}
 }
 
@@ -130,5 +152,5 @@ func ReportMetrics(sugar *zap.SugaredLogger, cfg *config.Config, client *resty.C
 		response = append(response, metric)
 	}
 
-	reportMetrics(sugar, url, client, response)
+	reportMetrics(cfg, sugar, url, client, response)
 }

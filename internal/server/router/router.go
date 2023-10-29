@@ -5,6 +5,7 @@ import (
 
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/config"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/gzip"
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/hash"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/retry"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/dbhandlers"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/dbstorage"
@@ -20,6 +21,7 @@ func SetupRouter(ctx context.Context, cfg *config.Config, sugar *zap.SugaredLogg
 
 	r.Use(gzip.WithCompression(sugar))
 	r.Use(logger.WithLogging(sugar))
+	r.Use(hash.WithHashing(cfg, sugar))
 	r.Use(retry.WithRetry(ctx, cfg, sugar))
 
 	r.Get("/", handlers.HandleMetricsHTML(ctx, sugar, store))

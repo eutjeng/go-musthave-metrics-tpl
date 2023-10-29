@@ -20,6 +20,7 @@ type Config struct {
 	Environment     string        `env:"ENVIRONMENT"`       // the application's environment, can be 'development' or 'production'
 	FileStoragePath string        `env:"FILE_STORAGE_PATH"` // the filename where the current metrics are saved
 	DBDSN           string        `env:"DATABASE_DSN"`      // the Data Source Name for connecting to the database
+	Key             string        `env:"KEY"`               // the secret key used for hashing data before transmission
 	MaxOpenConns    int           `env:"MAX_OPEN_CONNS"`    // max number of open database connections
 	MaxIdleConns    int           `env:"MAX_IDLE_CONNS"`    // max number of idle database connections
 	Restore         bool          `env:"RESTORE"`           // whether to restore previously saved values from a file upon server startup
@@ -44,6 +45,7 @@ const (
 	defaultEnvironmentProd = "production"
 	defaultFileStoragePath = "/tmp/metrics-db.json"
 	defaultDBDSN           = ""
+	defaultKey             = "supersecretkey"
 	defaultRestore         = true
 	defaultReportInterval  = 10  // in seconds
 	defaultPollInterval    = 2   // in seconds
@@ -127,10 +129,12 @@ func loadGeneralFlags(flagSet *flag.FlagSet, cfg *Config) PostParseSetter {
 			defaultEnvironmentProd,
 		),
 	)
+	key := flagSet.String("k", defaultKey, "Specify the secret key used for hashing. It should be a string value.")
 
 	return func(cfg *Config) {
 		cfg.Addr = *addr
 		cfg.Environment = *env
+		cfg.Key = *key
 	}
 }
 
