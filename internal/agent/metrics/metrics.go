@@ -17,7 +17,7 @@ import (
 	"go.uber.org/zap"
 )
 
-const urlTemplate = "%s/update"
+const urlTemplate = "%s/updates"
 
 func UpdateMetrics(pollCount *int64, randomValue *float64) {
 	*pollCount++
@@ -59,7 +59,7 @@ func collectMemoryMetrics() map[string]float64 {
 	}
 }
 
-func reportSingleMetric(sugar *zap.SugaredLogger, url string, client *resty.Client, res *models.Metrics) {
+func reportMetrics(sugar *zap.SugaredLogger, url string, client *resty.Client, res []models.Metrics) {
 	jsonData, err := json.Marshal(res)
 
 	if err != nil {
@@ -98,31 +98,37 @@ func generateMetricURL(addr string) string {
 }
 
 func ReportMetrics(sugar *zap.SugaredLogger, cfg *config.Config, client *resty.Client, randomValue float64, pollCount int64) {
-	gauges := collectMemoryMetrics()
-	gauges["RandomValue"] = randomValue
 	url := generateMetricURL(cfg.Addr)
 
+	gauges := collectMemoryMetrics()
 	counters := map[string]int64{
 		"PollCount": pollCount,
 	}
 
+	var response []models.Metrics
+
+	gauges["RandomValue"] = randomValue
+
 	for name, value := range gauges {
-		res := models.Metrics{
+		localValue := value
+		metric := models.Metrics{
 			ID:    name,
 			MType: constants.MetricTypeGauge,
-			Value: &value,
+			Value: &localValue,
 		}
 
-		reportSingleMetric(sugar, url, client, &res)
+		response = append(response, metric)
 	}
 
 	for name, delta := range counters {
-		res := models.Metrics{
+		localDelta := delta
+		metric := models.Metrics{
 			ID:    name,
 			MType: constants.MetricTypeCounter,
-			Delta: &delta,
+			Delta: &localDelta,
 		}
-
-		reportSingleMetric(sugar, url, client, &res)
+		response = append(response, metric)
 	}
+
+	reportMetrics(sugar, url, client, response)
 }

@@ -17,10 +17,11 @@ import (
 	"go.uber.org/zap"
 )
 
-// InitApp initializes the application by loading the configuration and setting up the logger
-// it returns a configuration object, a logger, a function to sync the logger, and possibly an error
-func InitApp() (*config.Config, *zap.SugaredLogger, func(), error) {
-	cfg, err := config.ParseConfig()
+// initAppWithConfigParser initializes the application by loading the configuration and setting up the logger.
+// It uses the provided function to parse the configuration.
+// It returns a configuration object, a logger, a function to sync the logger, and possibly an error.
+func initAppWithConfigParser(parseConfigFunc func() (*config.Config, error)) (*config.Config, *zap.SugaredLogger, func(), error) {
+	cfg, err := parseConfigFunc()
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("error while parsing config: %w", err)
 	}
@@ -31,6 +32,16 @@ func InitApp() (*config.Config, *zap.SugaredLogger, func(), error) {
 	}
 
 	return cfg, sugar, syncFunc, nil
+}
+
+// InitServerApp initializes the server application
+func InitServerApp() (*config.Config, *zap.SugaredLogger, func(), error) {
+	return initAppWithConfigParser(config.ParseServerConfig)
+}
+
+// InitAgentApp initializes the agent application
+func InitAgentApp() (*config.Config, *zap.SugaredLogger, func(), error) {
+	return initAppWithConfigParser(config.ParseAgentConfig)
 }
 
 // InitServer sets up and returns an HTTP server based on the provided configuration and router
@@ -72,7 +83,7 @@ func StartServer(srv *http.Server, errChan chan error) {
 // InitDBStorage initializes a database storage based on the provided configuration and logger
 // it returns an instance of dbstorage.StorageInterface or an error if any step in the initialization fails
 func InitDBStorage(ctx context.Context, cfg *config.Config, sugar *zap.SugaredLogger, wg *sync.WaitGroup) (dbstorage.Interface, error) {
-	dbStorage, err := dbstorage.NewDBStorage(ctx, cfg.DBDSN)
+	dbStorage, err := dbstorage.NewDBStorage(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +99,7 @@ func InitDBStorage(ctx context.Context, cfg *config.Config, sugar *zap.SugaredLo
 		wg.Done()
 	}()
 
-	if err := dbStorage.CreateTables(); err != nil {
+	if err := dbStorage.CreateTables(ctx); err != nil {
 		return nil, err
 	}
 	return dbStorage, nil

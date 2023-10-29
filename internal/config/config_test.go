@@ -60,29 +60,31 @@ func TestParseConfig(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		for k, v := range test.envVars {
-			os.Setenv(k, v)
-		}
+		t.Run(test.expectedAddr, func(t *testing.T) {
+			for k, v := range test.envVars {
+				os.Setenv(k, v)
+				defer os.Unsetenv(k)
+			}
 
-		os.Args = append([]string{"cmd"}, test.args...)
-		cfg, err := ParseConfig()
-		if err != nil {
-			t.Errorf("ParseConfig failed: %s", err)
-			continue
-		}
+			tempArgs := append([]string{"cmd"}, test.args...)
+			os.Args = tempArgs
 
-		if cfg.Addr != test.expectedAddr {
-			t.Errorf("expected %s, got %s", test.expectedAddr, cfg.Addr)
-		}
-		if cfg.ReportInterval != test.expectedReportInterval {
-			t.Errorf("expected %s, got %s", test.expectedReportInterval, cfg.ReportInterval)
-		}
-		if cfg.PollInterval != test.expectedPollInterval {
-			t.Errorf("expected %s, got %s", test.expectedPollInterval, cfg.PollInterval)
-		}
+			cfg, err := ParseAgentConfig()
+			if err != nil {
+				t.Errorf("ParseConfig failed: %s", err)
+				return
+			}
 
-		for k := range test.envVars {
-			os.Unsetenv(k)
-		}
+			if cfg.Addr != test.expectedAddr {
+				t.Errorf("expected %s, got %s", test.expectedAddr, cfg.Addr)
+			}
+			if cfg.ReportInterval != test.expectedReportInterval {
+				t.Errorf("expected %s, got %s", test.expectedReportInterval, cfg.ReportInterval)
+			}
+			if cfg.PollInterval != test.expectedPollInterval {
+				t.Errorf("expected %s, got %s", test.expectedPollInterval, cfg.PollInterval)
+			}
+		})
 	}
+
 }

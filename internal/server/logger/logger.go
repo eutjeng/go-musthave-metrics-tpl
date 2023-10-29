@@ -3,6 +3,7 @@ package logger
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -56,12 +57,22 @@ func WithLogging(sugar *zap.SugaredLogger) func(http.Handler) http.Handler {
 
 				r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 
-				var bodyData models.Metrics
-				if err := json.Unmarshal(bodyBytes, &bodyData); err != nil {
+				var raw json.RawMessage
+				if err = json.Unmarshal(bodyBytes, &raw); err != nil {
 					sugar.Errorw("Cannot unmarshal request body", "err", err)
 				}
 
-				formattedBody, err = json.Marshal(bodyData)
+				var singleMetric models.Metrics
+				var sliceMetrics []models.Metrics
+
+				if err = json.Unmarshal(raw, &singleMetric); err == nil {
+					formattedBody, err = json.Marshal(singleMetric)
+				} else if err = json.Unmarshal(raw, &sliceMetrics); err == nil {
+					formattedBody, err = json.Marshal(sliceMetrics)
+				} else {
+					sugar.Errorw("Unknown type of metrics", "type", fmt.Sprintf("%T", raw))
+				}
+
 				if err != nil {
 					sugar.Errorw("Cannot marshal request body", "err", err)
 				}

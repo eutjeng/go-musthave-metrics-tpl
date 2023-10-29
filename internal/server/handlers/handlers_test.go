@@ -1,6 +1,7 @@
 package handlers_test
 
 import (
+	"context"
 	"io"
 
 	"net/http"
@@ -21,8 +22,8 @@ func TestHandleUpdateAndGetMetrics(t *testing.T) {
 	r := chi.NewRouter()
 	sugar := zap.NewExample().Sugar()
 
-	r.HandleFunc("/update", handlers.HandleUpdateMetric(sugar, storage, false))
-	r.HandleFunc("/value", handlers.HandleGetMetric(sugar, storage))
+	r.HandleFunc("/update", handlers.HandleUpdateMetric(context.TODO(), sugar, storage, false))
+	r.HandleFunc("/value", handlers.HandleGetMetric(context.TODO(), sugar, storage))
 
 	ts := httptest.NewServer(r)
 	defer ts.Close()
@@ -87,11 +88,11 @@ func TestHandleMetricsHTML(t *testing.T) {
 	storage := storage.NewInMemoryStorage()
 	sugar := zap.NewExample().Sugar()
 
-	_ = storage.UpdateGauge("testGauge", 42.2, false)
-	_ = storage.UpdateCounter("testCounter", 42, false)
+	_ = storage.UpdateGauge(context.TODO(), "testGauge", 42.2, false)
+	_ = storage.UpdateCounter(context.TODO(), "testCounter", 42, false)
 
 	r := chi.NewRouter()
-	r.Get("/", handlers.HandleMetricsHTML(sugar, storage))
+	r.Get("/", handlers.HandleMetricsHTML(context.TODO(), sugar, storage))
 
 	ts := httptest.NewServer(r)
 	defer ts.Close()
