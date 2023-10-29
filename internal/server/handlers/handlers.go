@@ -12,7 +12,6 @@ import (
 
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/constants"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/models"
-	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/storage"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/utils"
 	"github.com/go-chi/chi/v5"
 )
@@ -67,7 +66,7 @@ func extractMetrics(r *http.Request) (string, string, *float64, *int64, error) {
 // HandleUpdateMetric is an HTTP handler that updates a metric in the storage
 // it extracts metric information from the request and uses it to update the metric in storage
 // responds with an HTTP status and, in case of JSON content type, a JSON-encoded response
-func HandleUpdateMetric(sugar *zap.SugaredLogger, storage storage.MetricStorage, shouldNotify bool) http.HandlerFunc {
+func HandleUpdateMetric(sugar *zap.SugaredLogger, storage models.GeneralStorageInterface, shouldNotify bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		metricType, metricName, metricValue, metricDelta, err := extractMetrics(r)
 
@@ -132,7 +131,7 @@ func HandleUpdateMetric(sugar *zap.SugaredLogger, storage storage.MetricStorage,
 // HandleGetMetric is an HTTP handler that retrieves a metric from the storage
 // it extracts metric information from the request and uses it to fetch the metric from storage
 // responds with the metric value in either JSON format or as a plain string based on the request's Content-Type header
-func HandleGetMetric(sugar *zap.SugaredLogger, storage storage.MetricStorage) http.HandlerFunc {
+func HandleGetMetric(sugar *zap.SugaredLogger, storage models.GeneralStorageInterface) http.HandlerFunc {
 	var v interface{}
 
 	return func(w http.ResponseWriter, r *http.Request) {

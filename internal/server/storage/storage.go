@@ -5,36 +5,21 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/models"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/utils"
 )
 
-// MetricStorage is an interface that provides methods for manipulating
+// Interface is an interface that provides methods for manipulating
 // various types of metrics such as gauges and counters
-type MetricStorage interface {
-	// UpdateGauge sets a new value for a gauge metric identified by its name
-	// the function returns an error if the operation fails
-	// if 'shouldNotify' is true, an update notification is triggered
-	UpdateGauge(name string, value float64, shouldNotify bool) error
-
-	// UpdateCounter increments the value of a counter metric by a given value
-	// the function returns an error if the operation fails
-	// if 'shouldNotify' is true, an update notification is triggered
-	UpdateCounter(name string, value int64, shouldNotify bool) error
-
-	// GetGauge fetches the current value of a gauge metric by its name
-	// returns the fetched value along with an error if the operation fails
-	GetGauge(name string) (float64, error)
-
-	// GetCounter fetches the current value of a counter metric by its name
-	// returns the fetched value along with an error if the operation fails
-	GetCounter(name string) (int64, error)
-
-	// String returns a stringified representation of the metrics stored
-	// this is primarily useful for debugging or logging purposes
-	String() string
+type Interface interface {
+	models.GeneralStorageInterface
+	GetMetricsData() (map[string]float64, map[string]int64)
+	SetMetricsData(gauges map[string]float64, counters map[string]int64)
+	GetUpdateChannel() chan struct{}
+	notifyUpdate(shouldNotify bool)
 }
 
-// InMemoryStorage is an implementation of the MetricStorage interface
+// InMemoryStorage is an implementation of the Interface interface
 // it stores the metrics in an in-memory data structure
 // this implementation is thread-safe
 type InMemoryStorage struct {

@@ -29,7 +29,7 @@ const (
 	defaultAddr            = ":8080"
 	defaultEnvironment     = "development"
 	defaultFileStoragePath = "/tmp/metrics-db.json"
-	defaultDBDSN           = "postgres://localhost:5432/metricsbase?sslmode=disable"
+	defaultDBDSN           = "" // postgres://postgres:postgres@postgres:5432/metricsbase?sslmode=disable
 	defaultRestore         = true
 	defaultReportInterval  = 10  // in seconds
 	defaultPollInterval    = 2   // in seconds

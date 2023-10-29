@@ -5,14 +5,15 @@ import (
 	"os"
 	"testing"
 
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/config"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 // saveAndLoad performs both SaveToFile and LoadFromFile, and returns any occurring error
-func saveAndLoad(s *storage.InMemoryStorage, filePath string) error {
-	if err := SaveToFile(s, filePath); err != nil {
+func saveAndLoad(cfg *config.Config, s *storage.InMemoryStorage, filePath string) error {
+	if err := SaveToFile(cfg, s); err != nil {
 		return err
 	}
 	return LoadFromFile(s, filePath)
@@ -93,6 +94,8 @@ func TestSaveAndLoadFromFile(t *testing.T) {
 		},
 	}
 
+	cfg := &config.Config{}
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Arrange: initialize storage
@@ -103,7 +106,7 @@ func TestSaveAndLoadFromFile(t *testing.T) {
 			filePath := tempDir + "/metrics.json"
 
 			// Act: save to file and load from it
-			err := saveAndLoad(s, filePath)
+			err := saveAndLoad(cfg, s, filePath)
 			require.NoError(t, err)
 
 			// Assert: validate data
