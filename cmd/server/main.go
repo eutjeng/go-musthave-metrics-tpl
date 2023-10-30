@@ -8,15 +8,12 @@ import (
 	_ "github.com/lib/pq"
 
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/appinit"
-	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/models"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/router"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/signalhandlers"
 )
 
 func main() {
 	var wg sync.WaitGroup
-	var store models.GeneralStorageInterface
-	var errInit error
 
 	cfg, sugar, syncFunc, err := appinit.InitServerApp()
 	if err != nil {
@@ -27,14 +24,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	if cfg.DBDSN == "" {
-		store, errInit = appinit.InitInMemoryStorage(cfg, sugar)
-	} else {
-		wg.Add(1)
-		store, errInit = appinit.InitDBStorage(ctx, cfg, sugar, &wg)
-
-	}
-
+	store, errInit := appinit.InitStore(ctx, cfg, sugar, &wg)
 	if errInit != nil {
 		sugar.Fatalf("Failed to initialize storage: %v", errInit)
 	}

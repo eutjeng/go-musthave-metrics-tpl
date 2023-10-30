@@ -13,9 +13,24 @@ import (
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/dbstorage"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/filestorage"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/logger"
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/models"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/storage"
 	"go.uber.org/zap"
 )
+
+func InitStore(ctx context.Context, cfg *config.Config, sugar *zap.SugaredLogger, wg *sync.WaitGroup) (models.GeneralStorageInterface, error) {
+	var store models.GeneralStorageInterface
+	var errInit error
+
+	if cfg.DBDSN == "" {
+		store, errInit = initInMemoryStorage(cfg, sugar)
+	} else {
+		wg.Add(1)
+		store, errInit = initDBStorage(ctx, cfg, sugar, wg)
+	}
+
+	return store, errInit
+}
 
 // initAppWithConfigParser initializes the application by loading the configuration and setting up the logger.
 // It uses the provided function to parse the configuration.
@@ -84,7 +99,7 @@ func StartServer(sugar *zap.SugaredLogger, srv *http.Server, errChan chan error)
 // InitDBStorage initializes the database storage and returns an Interface.
 // It also starts a goroutine to close the database connection when the application context is done.
 // The function makes use of a WaitGroup (wg) to notify the main goroutine of the successful closure of the database.
-func InitDBStorage(ctx context.Context, cfg *config.Config, sugar *zap.SugaredLogger, wg *sync.WaitGroup) (dbstorage.Interface, error) {
+func initDBStorage(ctx context.Context, cfg *config.Config, sugar *zap.SugaredLogger, wg *sync.WaitGroup) (dbstorage.Interface, error) {
 	dbStorage, err := dbstorage.NewDBStorage(cfg)
 	if err != nil {
 		return nil, err
@@ -109,7 +124,7 @@ func InitDBStorage(ctx context.Context, cfg *config.Config, sugar *zap.SugaredLo
 // InitInMemoryStorage initializes an in-memory storage based on the provided configuration and logger
 // it restores any saved data and sets up automatic data saving
 // it returns an instance of storage.InMemoryStorage or an error if any step in the initialization fails
-func InitInMemoryStorage(cfg *config.Config, sugar *zap.SugaredLogger) (*storage.InMemoryStorage, error) {
+func initInMemoryStorage(cfg *config.Config, sugar *zap.SugaredLogger) (*storage.InMemoryStorage, error) {
 	storage := storage.NewInMemoryStorage()
 	filestorage.RestoreData(sugar, storage, cfg)
 	InitDataSave(sugar, storage, cfg)
