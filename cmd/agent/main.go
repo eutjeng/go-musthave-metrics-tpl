@@ -3,8 +3,11 @@ package main
 import (
 	"context"
 	"log"
+	"os"
+	"os/signal"
 
-	"github.com/eutjeng/go-musthave-metrics-tpl/internal/agent/metrics"
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/agent/collector"
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/agent/dispatcher"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/appinit"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/models"
 	"github.com/go-resty/resty/v2"
@@ -31,9 +34,13 @@ func main() {
 
 	sem := semaphore.NewWeighted(int64(cfg.RateLimit))
 
-	go metrics.GatherStandardMetrics(cfg, sugar, metricsChan)
-	go metrics.GatherAdditionalMetrics(cfg, sugar, metricsChan)
-	go metrics.DispatchMetrics(ctx, cfg, sugar, client, metricsChan, reportChan, sem)
+	go collector.GatherStandardMetrics(ctx, cfg, sugar, metricsChan)
+	go collector.GatherAdditionalMetrics(ctx, cfg, sugar, metricsChan)
+	go dispatcher.DispatchMetrics(ctx, cfg, sugar, client, metricsChan, reportChan, sem)
 
-	select {}
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt)
+
+	<-sigChan
+	cancel()
 }
