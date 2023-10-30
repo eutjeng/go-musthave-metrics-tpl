@@ -47,35 +47,43 @@ func GatherAdditionalMetrics(cfg *config.Config, sugar *zap.SugaredLogger, ch ch
 	}
 }
 
-func DispatchMetrics(cfg *config.Config, sugar *zap.SugaredLogger, client *resty.Client, ch chan []models.Metrics, sem *semaphore.Weighted) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
+func DispatchMetrics(ctx context.Context, cfg *config.Config, sugar *zap.SugaredLogger, client *resty.Client, ch chan []models.Metrics, reportCh chan []models.Metrics, sem *semaphore.Weighted) {
+	var aggregateMetrics []models.Metrics
 
-	for metrics := range ch {
-		sugar.Infof("Received metrics: %v", metrics)
-		sugar.Debug("Attempting to acquire semaphore")
+	reportTicker := time.NewTicker(cfg.ReportInterval)
+	defer reportTicker.Stop()
 
-		if err := sem.Acquire(ctx, 1); err != nil {
-			sugar.Errorf("Failed to acquire semaphore: %v", err)
-			continue
-		}
-		sugar.Debug("Semaphore acquired, launching goroutine")
-		go func(metrics []models.Metrics) {
-			sugar.Debug("Preparing to release semaphore")
-			defer func() {
-				sem.Release(1)
-				sugar.Debug("Semaphore released")
-			}()
-			sugar.Debug("Inside goroutine, about to report metrics")
-			url := generateMetricURL(cfg.Addr)
-			err := reportMetrics(cfg, sugar, url, client, metrics)
-			if err != nil {
-				sugar.Errorf("Failed to report metrics: %v", err)
-			} else {
-				sugar.Infof("Metrics reported successfully")
+	for {
+		select {
+		case metrics := <-ch:
+			sugar.Infof("Received metrics: %v", metrics)
+			aggregateMetrics = append(aggregateMetrics, metrics...)
+
+		case <-reportTicker.C:
+			if len(aggregateMetrics) == 0 {
+				continue
 			}
-			sugar.Debug("Exiting goroutine")
-		}(metrics)
+
+			if err := sem.Acquire(ctx, 1); err != nil {
+				sugar.Errorf("Failed to acquire semaphore: %v", err)
+				continue
+			}
+
+			go func(metrics []models.Metrics) {
+				defer func() {
+					sem.Release(1)
+				}()
+				url := generateMetricURL(cfg.Addr)
+				err := reportMetrics(cfg, sugar, url, client, metrics)
+				if err != nil {
+					sugar.Errorf("Failed to report metrics: %v", err)
+				} else {
+					sugar.Infof("Metrics reported successfully")
+				}
+			}(aggregateMetrics)
+
+			aggregateMetrics = nil
+		}
 	}
 }
 
@@ -182,7 +190,6 @@ func createMetrics(sugar *zap.SugaredLogger, pollCount int64, randomValue float6
 	metrics = append(metrics, *createMetric("RandomValue", "gauge", randomValue, 0))
 
 	for metricName, metricValue := range memoryMetrics {
-		sugar.Debugf("Creating metric: %s, value: %v", metricName, metricValue)
 		metrics = append(metrics, *createMetric(metricName, "gauge", metricValue, 0))
 	}
 
