@@ -102,20 +102,22 @@ func StartServer(sugar *zap.SugaredLogger, srv *http.Server, errChan chan error)
 func initDBStorage(ctx context.Context, cfg *config.Config, sugar *zap.SugaredLogger, wg *sync.WaitGroup) (dbstorage.Interface, error) {
 	dbStorage, err := dbstorage.NewDBStorage(cfg)
 	if err != nil {
+		sugar.Errorf("failed to initialize db storage: %v", err)
 		return nil, err
 	}
 
 	go func() {
 		<-ctx.Done()
 		if err := dbStorage.Close(); err != nil {
-			sugar.Errorf("Error while closing the database: %v", err)
+			sugar.Errorf("error while closing the database: %v", err)
 		} else {
-			sugar.Info("Database closed successfully")
+			sugar.Info("database closed successfully")
 		}
 		wg.Done()
 	}()
 
 	if err := dbStorage.CreateTables(ctx); err != nil {
+		sugar.Errorf("failed to create tables: %v", err)
 		return nil, err
 	}
 	return dbStorage, nil
