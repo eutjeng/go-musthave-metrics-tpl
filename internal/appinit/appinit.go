@@ -81,8 +81,9 @@ func StartServer(sugar *zap.SugaredLogger, srv *http.Server, errChan chan error)
 	}()
 }
 
-// InitDBStorage initializes a database storage based on the provided configuration and logger
-// it returns an instance of dbstorage.StorageInterface or an error if any step in the initialization fails
+// InitDBStorage initializes the database storage and returns an Interface.
+// It also starts a goroutine to close the database connection when the application context is done.
+// The function makes use of a WaitGroup (wg) to notify the main goroutine of the successful closure of the database.
 func InitDBStorage(ctx context.Context, cfg *config.Config, sugar *zap.SugaredLogger, wg *sync.WaitGroup) (dbstorage.Interface, error) {
 	dbStorage, err := dbstorage.NewDBStorage(cfg)
 	if err != nil {
