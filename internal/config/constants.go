@@ -21,4 +21,5 @@ const (
 	defaultInitialDelay    = 1   // in seconds
 	defaultMaxRetries      = 3   // in seconds
 	defaultDelayIncrement  = 1   // in seconds
+	defaultRequestTimeout  = 5   // in seconds
 )

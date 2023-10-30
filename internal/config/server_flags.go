@@ -20,6 +20,7 @@ func loadServerFlags(flagSet *flag.FlagSet, cfg *Config) PostParseSetter {
 	initialDelay := flagSet.Int64("id", defaultInitialDelay, "Initial delay before the first retry attempt, in seconds")
 	maxRetries := flagSet.Int("mr", defaultMaxRetries, "Maximum number of retries for the operation")
 	delayIncrement := flagSet.Int64("di", defaultDelayIncrement, "Incremental delay between retries, in seconds")
+	requestTimeout := flagSet.Int64("q", defaultRequestTimeout, "Specify the request timeout for the server, in seconds")
 
 	return func(cfg *Config) {
 		cfg.ReadTimeout = time.Duration(*readTimeout) * time.Second
@@ -35,5 +36,6 @@ func loadServerFlags(flagSet *flag.FlagSet, cfg *Config) PostParseSetter {
 		cfg.InitialDelay = time.Duration(*initialDelay) * time.Second
 		cfg.MaxRetries = *maxRetries
 		cfg.DelayIncrement = time.Duration(*delayIncrement) * time.Second
+		cfg.RequestTimeout = time.Duration(*requestTimeout) * time.Second
 	}
 }

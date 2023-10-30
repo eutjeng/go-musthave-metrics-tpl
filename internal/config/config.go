@@ -23,7 +23,7 @@ type Config struct {
 	Key             string        `env:"KEY"`               // the secret key used for hashing data before transmission
 	MaxOpenConns    int           `env:"MAX_OPEN_CONNS"`    // max number of open database connections
 	MaxIdleConns    int           `env:"MAX_IDLE_CONNS"`    // max number of idle database connections
-	RateLimit       int           `env:"RATE_LIMIT"`
+	RateLimit       int           `env:"RATE_LIMIT"`        // Rate limit for outgoing requests. This is the maximum number of concurrent outgoing requests allowed. Used with a semaphore to limit the rate.
 	Restore         bool          `env:"RESTORE"`           // whether to restore previously saved values from a file upon server startup
 	ConnMaxLifetime time.Duration `env:"CONN_MAX_LIFETIME"` // max lifetime of a database connection, in seconds
 	ReportInterval  time.Duration `env:"REPORT_INTERVAL"`   // interval for sending metrics to the server, in seconds
@@ -35,6 +35,7 @@ type Config struct {
 	MaxRetries      int           `env:"MAX_RETRIES"`       // maximum number of retries for the operation
 	InitialDelay    time.Duration `env:"INITIAL_DELAY"`     // initial delay before the first retry attempt, in seconds
 	DelayIncrement  time.Duration `env:"DELAY_INCREMENT"`   // incremental delay between retries, in seconds
+	RequestTimeout  time.Duration `env:"REQUEST_TIMEOUT"`   // request timeout for the server, in seconds. This is the maximum amount of time the server will wait for a request to complete
 }
 
 // loadAndParseFlags is responsible for configuring, parsing, and validating
