@@ -3,24 +3,83 @@ package metrics
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"fmt"
 	"math/rand"
 	"net/http"
 	"runtime"
+	"time"
 
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/config"
-	"github.com/eutjeng/go-musthave-metrics-tpl/internal/constants"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/hash"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/models"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/utils"
 	"github.com/go-resty/resty/v2"
+	"github.com/shirou/gopsutil/cpu"
+	"github.com/shirou/gopsutil/mem"
 	"go.uber.org/zap"
+	"golang.org/x/sync/semaphore"
 )
 
 const urlTemplate = "%s/updates"
 
-func UpdateMetrics(pollCount *int64, randomValue *float64) {
+func GatherStandardMetrics(cfg *config.Config, sugar *zap.SugaredLogger, ch chan []models.Metrics) {
+	var pollCount int64
+	var randomValue float64
+
+	for {
+		updateMetrics(&pollCount, &randomValue)
+		memoryMetrics := collectMemoryMetrics()
+		metrics := createMetrics(sugar, pollCount, randomValue, memoryMetrics)
+		sugar.Infof("Collected metrics: %+v", metrics)
+		ch <- metrics
+		time.Sleep(cfg.PollInterval)
+	}
+}
+
+func GatherAdditionalMetrics(cfg *config.Config, sugar *zap.SugaredLogger, ch chan []models.Metrics) {
+	for {
+		metrics := collectAdditionalMetrics()
+		sugar.Infof("Collected additional metrics: %+v", metrics)
+		ch <- metrics
+		time.Sleep(cfg.PollInterval)
+	}
+}
+
+func DispatchMetrics(cfg *config.Config, sugar *zap.SugaredLogger, client *resty.Client, ch chan []models.Metrics, sem *semaphore.Weighted) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	for metrics := range ch {
+		sugar.Infof("Received metrics: %v", metrics)
+		sugar.Debug("Attempting to acquire semaphore")
+
+		if err := sem.Acquire(ctx, 1); err != nil {
+			sugar.Errorf("Failed to acquire semaphore: %v", err)
+			continue
+		}
+		sugar.Debug("Semaphore acquired, launching goroutine")
+		go func(metrics []models.Metrics) {
+			sugar.Debug("Preparing to release semaphore")
+			defer func() {
+				sem.Release(1)
+				sugar.Debug("Semaphore released")
+			}()
+			sugar.Debug("Inside goroutine, about to report metrics")
+			url := generateMetricURL(cfg.Addr)
+			err := reportMetrics(cfg, sugar, url, client, metrics)
+			if err != nil {
+				sugar.Errorf("Failed to report metrics: %v", err)
+			} else {
+				sugar.Infof("Metrics reported successfully")
+			}
+			sugar.Debug("Exiting goroutine")
+		}(metrics)
+	}
+}
+
+func updateMetrics(pollCount *int64, randomValue *float64) {
 	*pollCount++
 	*randomValue = rand.Float64()
 }
@@ -60,18 +119,6 @@ func collectMemoryMetrics() map[string]float64 {
 	}
 }
 
-func compressData(data []byte) ([]byte, error) {
-	var b bytes.Buffer
-	gz := gzip.NewWriter(&b)
-	if _, err := gz.Write(data); err != nil {
-		return nil, err
-	}
-	if err := gz.Close(); err != nil {
-		return nil, err
-	}
-	return b.Bytes(), nil
-}
-
 func sendRequestWithHashing(cfg *config.Config, sugar *zap.SugaredLogger, client *resty.Client, url string, compressedBody []byte, hash string) error {
 	sugar.Infof("request hash: %s", hash)
 
@@ -95,62 +142,84 @@ func sendRequestWithHashing(cfg *config.Config, sugar *zap.SugaredLogger, client
 	return nil
 }
 
-func reportMetrics(cfg *config.Config, sugar *zap.SugaredLogger, url string, client *resty.Client, res []models.Metrics) {
+func reportMetrics(cfg *config.Config, sugar *zap.SugaredLogger, url string, client *resty.Client, res []models.Metrics) error {
+	sugar.Infof("Sending metrics to %s: %v", url, res)
 	jsonData, err := json.Marshal(res)
 	if err != nil {
-		sugar.Errorw("json marshaling failed", "error", err)
-		return
+		return fmt.Errorf("json marshaling failed: %w", err)
 	}
 
 	hash := hash.ComputeHash(jsonData, cfg.Key)
 
 	compressedData, err := compressData(jsonData)
 	if err != nil {
-		sugar.Errorw("failed to compress json data", "error", err)
-		return
+		return fmt.Errorf("failed to compress json data: %w", err)
 	}
 
-	if err := sendRequestWithHashing(cfg, sugar, client, url, compressedData, hash); err != nil {
-		sugar.Errorw("failed to send request with hashing", "error", err)
+	err = sendRequestWithHashing(cfg, sugar, client, url, compressedData, hash)
+	if err != nil {
+		return fmt.Errorf("failed to send request with hashing: %w", err)
 	}
+
+	return nil
+}
+
+func createMetric(id string, mType string, value float64, delta int64) *models.Metrics {
+	v := value
+	d := delta
+	return &models.Metrics{
+		ID:    id,
+		MType: mType,
+		Value: &v,
+		Delta: &d,
+	}
+}
+
+func createMetrics(sugar *zap.SugaredLogger, pollCount int64, randomValue float64, memoryMetrics map[string]float64) []models.Metrics {
+	var metrics []models.Metrics
+
+	metrics = append(metrics, *createMetric("PollCount", "counter", 0, pollCount))
+	metrics = append(metrics, *createMetric("RandomValue", "gauge", randomValue, 0))
+
+	for metricName, metricValue := range memoryMetrics {
+		sugar.Debugf("Creating metric: %s, value: %v", metricName, metricValue)
+		metrics = append(metrics, *createMetric(metricName, "gauge", metricValue, 0))
+	}
+
+	return metrics
+}
+
+func collectAdditionalMetrics() []models.Metrics {
+	var metrics []models.Metrics
+
+	v, err := mem.VirtualMemory()
+	if err == nil {
+		metrics = append(metrics, *createMetric("TotalMemory", "gauge", float64(v.Total), 0))
+		metrics = append(metrics, *createMetric("FreeMemory", "gauge", float64(v.Free), 0))
+	}
+
+	cpuUsages, err := cpu.Percent(0, true)
+	if err == nil {
+		for i, usage := range cpuUsages {
+			metrics = append(metrics, *createMetric("CPUutilization"+fmt.Sprint(i), "gauge", usage, 0))
+		}
+	}
+
+	return metrics
 }
 
 func generateMetricURL(addr string) string {
 	return fmt.Sprintf(urlTemplate, utils.EnsureHTTPScheme(addr))
 }
 
-func ReportMetrics(sugar *zap.SugaredLogger, cfg *config.Config, client *resty.Client, randomValue float64, pollCount int64) {
-	url := generateMetricURL(cfg.Addr)
-
-	gauges := collectMemoryMetrics()
-	counters := map[string]int64{
-		"PollCount": pollCount,
+func compressData(data []byte) ([]byte, error) {
+	var b bytes.Buffer
+	gz := gzip.NewWriter(&b)
+	if _, err := gz.Write(data); err != nil {
+		return nil, err
 	}
-
-	var response []models.Metrics
-
-	gauges["RandomValue"] = randomValue
-
-	for name, value := range gauges {
-		localValue := value
-		metric := models.Metrics{
-			ID:    name,
-			MType: constants.MetricTypeGauge,
-			Value: &localValue,
-		}
-
-		response = append(response, metric)
+	if err := gz.Close(); err != nil {
+		return nil, err
 	}
-
-	for name, delta := range counters {
-		localDelta := delta
-		metric := models.Metrics{
-			ID:    name,
-			MType: constants.MetricTypeCounter,
-			Delta: &localDelta,
-		}
-		response = append(response, metric)
-	}
-
-	reportMetrics(cfg, sugar, url, client, response)
+	return b.Bytes(), nil
 }

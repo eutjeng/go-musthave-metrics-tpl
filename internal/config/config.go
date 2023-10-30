@@ -23,6 +23,7 @@ type Config struct {
 	Key             string        `env:"KEY"`               // the secret key used for hashing data before transmission
 	MaxOpenConns    int           `env:"MAX_OPEN_CONNS"`    // max number of open database connections
 	MaxIdleConns    int           `env:"MAX_IDLE_CONNS"`    // max number of idle database connections
+	RateLimit       int           `env:"RATE_LIMIT"`
 	Restore         bool          `env:"RESTORE"`           // whether to restore previously saved values from a file upon server startup
 	ConnMaxLifetime time.Duration `env:"CONN_MAX_LIFETIME"` // max lifetime of a database connection, in seconds
 	ReportInterval  time.Duration `env:"REPORT_INTERVAL"`   // interval for sending metrics to the server, in seconds
@@ -47,6 +48,7 @@ const (
 	defaultDBDSN           = ""
 	defaultKey             = "supersecretkey"
 	defaultRestore         = true
+	defaultRateLimit       = 2
 	defaultReportInterval  = 10  // in seconds
 	defaultPollInterval    = 2   // in seconds
 	defaultReadTimeout     = 5   // in seconds
@@ -175,10 +177,13 @@ func loadServerFlags(flagSet *flag.FlagSet, cfg *Config) PostParseSetter {
 func loadAgentFlags(flagSet *flag.FlagSet, cfg *Config) PostParseSetter {
 	reportInterval := flagSet.Int64("r", defaultReportInterval, "Set the interval for sending metrics to the server, in seconds")
 	pollInterval := flagSet.Int64("p", defaultPollInterval, "Set the interval for polling metrics from the runtime package, in seconds")
+	rateLimit := flagSet.Int("l", defaultRateLimit, "")
 
 	return func(cfg *Config) {
 		cfg.ReportInterval = time.Duration(*reportInterval) * time.Second
 		cfg.PollInterval = time.Duration(*pollInterval) * time.Second
+		cfg.RateLimit = *rateLimit
+
 	}
 }
 

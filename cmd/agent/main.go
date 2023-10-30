@@ -2,17 +2,15 @@ package main
 
 import (
 	"log"
-	"time"
 
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/agent/metrics"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/appinit"
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/models"
 	"github.com/go-resty/resty/v2"
+	"golang.org/x/sync/semaphore"
 )
 
 func main() {
-	var pollCount int64
-	var randomValue float64
-
 	client := resty.New()
 	cfg, sugar, syncFunc, err := appinit.InitAgentApp()
 	if err != nil {
@@ -20,16 +18,15 @@ func main() {
 	}
 	defer syncFunc()
 
-	go func() {
-		for {
-			metrics.ReportMetrics(sugar, cfg, client, randomValue, pollCount)
-			time.Sleep(cfg.ReportInterval)
+	metricsChan := make(chan []models.Metrics, 10)
+	defer close(metricsChan)
 
-		}
-	}()
+	sem := semaphore.NewWeighted(int64(cfg.RateLimit))
+	sugar.Infof("Rate limit value: %v", cfg.RateLimit)
 
-	for {
-		metrics.UpdateMetrics(&pollCount, &randomValue)
-		time.Sleep(cfg.PollInterval)
-	}
+	go metrics.GatherStandardMetrics(cfg, sugar, metricsChan)
+	go metrics.GatherAdditionalMetrics(cfg, sugar, metricsChan)
+	go metrics.DispatchMetrics(cfg, sugar, client, metricsChan, sem)
+
+	select {}
 }
