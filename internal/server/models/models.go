@@ -12,27 +12,30 @@ type Metrics struct {
 }
 
 type GeneralStorageInterface interface {
-	// UpdateGauge sets a new value for a gauge metric identified by its name
-	// the function returns an error if the operation fails
-	// if 'shouldNotify' is true, an update notification is triggered
+	// UpdateGauge updates the value of a gauge metric identified by its name.
+	// If 'shouldNotify' is true, an update notification will be triggered.
+	// Returns an error if the operation fails.
 	UpdateGauge(ctx context.Context, name string, value float64, shouldNotify bool) error
 
-	// UpdateCounter increments the value of a counter metric by a given value
-	// the function returns an error if the operation fails
-	// if 'shouldNotify' is true, an update notification is triggered
+	// UpdateCounter increments a counter metric identified by its name by a given value.
+	// If 'shouldNotify' is true, an update notification will be triggered.
+	// Returns an error if the operation fails.
 	UpdateCounter(ctx context.Context, name string, value int64, shouldNotify bool) error
 
-	// GetGauge fetches the current value of a gauge metric by its name
-	// returns the fetched value along with an error if the operation fails
+	// GetGauge retrieves the current value of a gauge metric identified by its name.
+	// Returns the fetched value and an error if the operation fails.
 	GetGauge(ctx context.Context, name string) (float64, error)
 
-	// GetCounter fetches the current value of a counter metric by its name
-	// returns the fetched value along with an error if the operation fails
+	// GetCounter retrieves the current value of a counter metric identified by its name.
+	// Returns the fetched value and an error if the operation fails.
 	GetCounter(ctx context.Context, name string) (int64, error)
 
-	// String returns a stringified representation of the metrics stored
-	// this is primarily useful for debugging or logging purposes
+	// String returns a string representation of the stored metrics.
+	// This is primarily for debugging or logging purposes.
 	String(ctx context.Context) string
 
+	// SaveMetrics stores an array of metrics in the storage.
+	// If 'shouldNotify' is true, an update notification will be triggered for each metric.
+	// Returns an error if the operation fails.
 	SaveMetrics(ctx context.Context, metrics []Metrics, shouldNotify bool) error
 }

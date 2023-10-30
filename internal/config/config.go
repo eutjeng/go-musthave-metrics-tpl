@@ -20,6 +20,7 @@ type Config struct {
 	Environment     string        `env:"ENVIRONMENT"`       // the application's environment, can be 'development' or 'production'
 	FileStoragePath string        `env:"FILE_STORAGE_PATH"` // the filename where the current metrics are saved
 	DBDSN           string        `env:"DATABASE_DSN"`      // the Data Source Name for connecting to the database
+	Key             string        `env:"KEY"`               // the secret key used for hashing data before transmission
 	MaxOpenConns    int           `env:"MAX_OPEN_CONNS"`    // max number of open database connections
 	MaxIdleConns    int           `env:"MAX_IDLE_CONNS"`    // max number of idle database connections
 	Restore         bool          `env:"RESTORE"`           // whether to restore previously saved values from a file upon server startup
@@ -30,6 +31,9 @@ type Config struct {
 	ReadTimeout     time.Duration `env:"READ_TIMEOUT"`      // read timeout for the server, in seconds
 	WriteTimeout    time.Duration `env:"WRITE_TIMEOUT"`     // write timeout for the server, in seconds
 	IdleTimeout     time.Duration `env:"IDLE_TIMEOUT"`      // idle timeout for server connections, in seconds
+	MaxRetries      int           `env:"MAX_RETRIES"`       // maximum number of retries for the operation
+	InitialDelay    time.Duration `env:"INITIAL_DELAY"`     // initial delay before the first retry attempt, in seconds
+	DelayIncrement  time.Duration `env:"DELAY_INCREMENT"`   // incremental delay between retries, in seconds
 }
 
 type PostParseSetter func(*Config)
@@ -41,6 +45,7 @@ const (
 	defaultEnvironmentProd = "production"
 	defaultFileStoragePath = "/tmp/metrics-db.json"
 	defaultDBDSN           = ""
+	defaultKey             = "supersecretkey"
 	defaultRestore         = true
 	defaultReportInterval  = 10  // in seconds
 	defaultPollInterval    = 2   // in seconds
@@ -51,6 +56,9 @@ const (
 	defaultMaxOpenConns    = 25  // in seconds
 	defaultMaxIdleConns    = 25  // in seconds
 	defaultConnMaxLifetime = 300 // in seconds
+	defaultInitialDelay    = 1   // in seconds
+	defaultMaxRetries      = 3   // in seconds
+	defaultDelayIncrement  = 1   // in seconds
 )
 
 // loadAndParseFlags is responsible for configuring, parsing, and validating
@@ -121,10 +129,12 @@ func loadGeneralFlags(flagSet *flag.FlagSet, cfg *Config) PostParseSetter {
 			defaultEnvironmentProd,
 		),
 	)
+	key := flagSet.String("k", defaultKey, "Specify the secret key used for hashing. It should be a string value.")
 
 	return func(cfg *Config) {
 		cfg.Addr = *addr
 		cfg.Environment = *env
+		cfg.Key = *key
 	}
 }
 
@@ -140,6 +150,9 @@ func loadServerFlags(flagSet *flag.FlagSet, cfg *Config) PostParseSetter {
 	maxOpenConns := flagSet.Int("mo", defaultMaxOpenConns, "Specify the maximum number of open database connections")
 	maxIdleConns := flagSet.Int("mi", defaultMaxIdleConns, "Specify the maximum number of idle database connections")
 	connMaxLifetime := flagSet.Int64("ml", defaultConnMaxLifetime, "Specify the maximum lifetime of a database connection, in seconds")
+	initialDelay := flagSet.Int64("id", defaultInitialDelay, "Initial delay before the first retry attempt, in seconds")
+	maxRetries := flagSet.Int("mr", defaultMaxRetries, "Maximum number of retries for the operation")
+	delayIncrement := flagSet.Int64("di", defaultDelayIncrement, "Incremental delay between retries, in seconds")
 
 	return func(cfg *Config) {
 		cfg.ReadTimeout = time.Duration(*readTimeout) * time.Second
@@ -152,6 +165,9 @@ func loadServerFlags(flagSet *flag.FlagSet, cfg *Config) PostParseSetter {
 		cfg.MaxOpenConns = *maxOpenConns
 		cfg.MaxIdleConns = *maxIdleConns
 		cfg.ConnMaxLifetime = time.Duration(*connMaxLifetime) * time.Second
+		cfg.InitialDelay = time.Duration(*initialDelay) * time.Second
+		cfg.MaxRetries = *maxRetries
+		cfg.DelayIncrement = time.Duration(*delayIncrement) * time.Second
 	}
 }
 

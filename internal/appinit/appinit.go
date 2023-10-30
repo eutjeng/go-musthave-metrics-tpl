@@ -74,8 +74,9 @@ func InitSignalHandling() (chan struct{}, chan os.Signal) {
 }
 
 // StartServer launches the HTTP server in a goroutine and sends any errors to the provided channel
-func StartServer(srv *http.Server, errChan chan error) {
+func StartServer(sugar *zap.SugaredLogger, srv *http.Server, errChan chan error) {
 	go func() {
+		sugar.Infof("Server is running at %s", srv.Addr)
 		errChan <- srv.ListenAndServe()
 	}()
 }
@@ -89,7 +90,6 @@ func InitDBStorage(ctx context.Context, cfg *config.Config, sugar *zap.SugaredLo
 	}
 
 	go func() {
-		sugar.Info("Waiting for context to close database")
 		<-ctx.Done()
 		if err := dbStorage.Close(); err != nil {
 			sugar.Errorf("Error while closing the database: %v", err)
