@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/constants"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/models"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/utils"
 )
@@ -136,12 +137,12 @@ func (s *InMemoryStorage) SaveMetrics(ctx context.Context, metrics []models.Metr
 
 	for _, metric := range metrics {
 		switch metric.MType {
-		case "gauge":
+		case constants.MetricTypeGauge:
 			if metric.Value == nil {
 				return fmt.Errorf("value not provided for gauge: %s", metric.ID)
 			}
 			s.gauges[metric.ID] = *metric.Value
-		case "counter":
+		case constants.MetricTypeCounter:
 			if metric.Delta == nil {
 				return fmt.Errorf("delta not provided for counter: %s", metric.ID)
 			}

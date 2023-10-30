@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/config"
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/constants"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/models"
 	"github.com/jmoiron/sqlx"
 )
@@ -182,7 +183,7 @@ func (s *DBStorage) SaveMetrics(ctx context.Context, metrics []models.Metrics, s
 		}
 
 		switch metric.MType {
-		case "gauge":
+		case constants.MetricTypeGauge:
 			if metric.Value == nil {
 				return fmt.Errorf("value not provided for gauge: %s", metric.ID)
 			}
@@ -191,7 +192,7 @@ func (s *DBStorage) SaveMetrics(ctx context.Context, metrics []models.Metrics, s
 			if err != nil {
 				return err
 			}
-		case "counter":
+		case constants.MetricTypeCounter:
 			if metric.Delta == nil {
 				return fmt.Errorf("delta not provided for counter: %s", metric.ID)
 			}
