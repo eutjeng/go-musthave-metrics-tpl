@@ -6,7 +6,15 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
+
+	"go.uber.org/zap/zapcore"
 )
+
+func CustomTimeEncoder(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
+	t = t.UTC()
+	enc.AppendString(t.Format("01.02.2006 15:04:05 UTC"))
+}
 
 func SplitPath(path string) []string {
 	return strings.Split(strings.TrimPrefix(path, "/"), "/")
