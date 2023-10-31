@@ -18,18 +18,22 @@ import (
 	"go.uber.org/zap"
 )
 
+// InitStore initializes the storage backend based on the provided configuration.
+// It uses either in-memory storage or database storage depending on the config.
+// The function takes a context, configuration object, a logger, and a wait group.
+// It returns a storage interface and possibly an error.
 func InitStore(ctx context.Context, cfg *config.Config, sugar *zap.SugaredLogger, wg *sync.WaitGroup) (models.GeneralStorageInterface, error) {
 	var store models.GeneralStorageInterface
-	var errInit error
+	var err error
 
 	if cfg.DBDSN == "" {
-		store, errInit = initInMemoryStorage(cfg, sugar)
+		store, err = initInMemoryStorage(cfg, sugar)
 	} else {
 		wg.Add(1)
-		store, errInit = initDBStorage(ctx, cfg, sugar, wg)
+		store, err = initDBStorage(ctx, cfg, sugar, wg)
 	}
 
-	return store, errInit
+	return store, err
 }
 
 // initAppWithConfigParser initializes the application by loading the configuration and setting up the logger.
