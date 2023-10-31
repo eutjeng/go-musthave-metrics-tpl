@@ -36,6 +36,11 @@ func sendRequestWithHashing(cfg *config.Config, sugar *zap.SugaredLogger, client
 	return nil
 }
 
+// ReportMetrics is a function that sends the collected metrics to a specified URL.
+// It first marshals the metrics to JSON format, then compresses and hashes the data.
+// Finally, it sends the compressed and hashed data using a REST client.
+// The function takes a configuration object, a logger, a URL, a REST client, and the metrics to be sent.
+// It returns an error if any step fails.
 func ReportMetrics(cfg *config.Config, sugar *zap.SugaredLogger, url string, client *resty.Client, res []models.Metrics) error {
 	sugar.Infof("Sending metrics to %s: %v", url, res)
 	jsonData, err := json.Marshal(res)

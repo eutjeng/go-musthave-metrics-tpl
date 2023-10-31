@@ -27,6 +27,11 @@ func reportMetricsAsync(metrics []models.Metrics, cfg *config.Config, sugar *zap
 	}
 }
 
+// DispatchMetrics is a function responsible for handling the metrics collected by other routines.
+// It receives metrics through a channel, aggregates them, and dispatches them for reporting at regular intervals.
+// The function takes a context for cancellation, a configuration object, a logger, a REST client,
+// a channel for incoming metrics, a channel for reporting metrics, and a semaphore for controlling concurrency.
+// It will stop dispatching metrics and exit if the context is cancelled.
 func DispatchMetrics(ctx context.Context, cfg *config.Config, sugar *zap.SugaredLogger, client *resty.Client, ch chan []models.Metrics, reportCh chan []models.Metrics, sem *semaphore.Weighted) {
 	var aggregateMetrics []models.Metrics
 

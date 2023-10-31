@@ -14,6 +14,11 @@ import (
 	"go.uber.org/zap"
 )
 
+// GatherStandardMetrics is a function that continuously gathers standard metrics
+// such as memory usage, poll count, and other custom metrics.
+// It runs in an infinite loop and sends the collected metrics to a channel.
+// The function takes a context for cancellation, a configuration object, a logger, and a channel for metrics.
+// It will stop collecting metrics and close the channel if the context is cancelled.
 func GatherStandardMetrics(ctx context.Context, cfg *config.Config, sugar *zap.SugaredLogger, ch chan []models.Metrics) {
 	var pollCount int64
 	var randomValue float64
@@ -35,6 +40,10 @@ func GatherStandardMetrics(ctx context.Context, cfg *config.Config, sugar *zap.S
 	}
 }
 
+// GatherAdditionalMetrics is a function that continuously gathers additional custom metrics.
+// It runs in an infinite loop and sends the collected metrics to a channel.
+// The function takes a context for cancellation, a configuration object, a logger, and a channel for metrics.
+// It will stop collecting metrics and close the channel if the context is cancelled.
 func GatherAdditionalMetrics(ctx context.Context, cfg *config.Config, sugar *zap.SugaredLogger, ch chan []models.Metrics) {
 	for {
 		select {
