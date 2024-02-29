@@ -229,13 +229,7 @@ func HandleSaveMetrics(ctx context.Context, sugar *zap.SugaredLogger, storage mo
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 
-			jsonData := struct {
-				Zero []models.Metrics `json:"0"`
-			}{
-				Zero: metrics,
-			}
-
-			if err := json.NewEncoder(w).Encode(jsonData); err != nil {
+			if err := json.NewEncoder(w).Encode(metrics); err != nil {
 				sugar.Errorw("Cannot encode response JSON body", err)
 				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			}

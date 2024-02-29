@@ -3,7 +3,10 @@ package router
 import (
 	"context"
 
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/config"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/gzip"
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/hash"
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/retry"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/dbhandlers"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/dbstorage"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/handlers"
@@ -13,11 +16,13 @@ import (
 	"go.uber.org/zap"
 )
 
-func SetupRouter(ctx context.Context, sugar *zap.SugaredLogger, store models.GeneralStorageInterface, shouldNotify bool) *chi.Mux {
+func SetupRouter(ctx context.Context, cfg *config.Config, sugar *zap.SugaredLogger, store models.GeneralStorageInterface, shouldNotify bool) *chi.Mux {
 	r := chi.NewRouter()
 
 	r.Use(gzip.WithCompression(sugar))
 	r.Use(logger.WithLogging(sugar))
+	r.Use(hash.WithHashing(cfg, sugar))
+	r.Use(retry.WithRetry(ctx, cfg, sugar))
 
 	r.Get("/", handlers.HandleMetricsHTML(ctx, sugar, store))
 

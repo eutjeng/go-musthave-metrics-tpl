@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/config"
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/constants"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/models"
 	"github.com/jmoiron/sqlx"
 )
@@ -17,15 +18,16 @@ type DBStorage struct {
 	db *sqlx.DB
 }
 
-// Interface defines methods for database storage
+// Interface is an interface defining the methods that should be
+// implemented by the DBStorage struct for database storage
 type Interface interface {
-	models.GeneralStorageInterface
-	Ping() error
-	CreateTables(ctx context.Context) error
-	Close() error
+	models.GeneralStorageInterface          // Embedding a general storage interface
+	Ping() error                            // Method to ping the database to ensure the connection
+	CreateTables(ctx context.Context) error // Method to create necessary tables
+	Close() error                           // Method to close the database connection
 }
 
-// NewDBStorage initializes new database storage
+// NewDBStorage initializes and returns a new DBStorage object
 func NewDBStorage(cfg *config.Config) (*DBStorage, error) {
 
 	db, err := sqlx.Open("postgres", cfg.DBDSN)
@@ -42,7 +44,7 @@ func NewDBStorage(cfg *config.Config) (*DBStorage, error) {
 	return storage, nil
 }
 
-// Close closes the database connection
+// Close is responsible for closing the database connection
 func (s *DBStorage) Close() error {
 	if err := s.db.Close(); err != nil {
 		return fmt.Errorf("failed to close database: %v", err)
@@ -51,12 +53,12 @@ func (s *DBStorage) Close() error {
 	return nil
 }
 
-// Ping checks the database connection
+// Ping checks if the database is reachable
 func (s *DBStorage) Ping() error {
 	return s.db.Ping()
 }
 
-// CreateTables creates necessary tables in the database
+// CreateTables is responsible for creating the necessary tables in the database
 func (s *DBStorage) CreateTables(ctx context.Context) error {
 	_, err := s.db.ExecContext(ctx, `
 		CREATE TABLE IF NOT EXISTS gauges (
@@ -87,7 +89,7 @@ func (s *DBStorage) CreateTables(ctx context.Context) error {
 	return nil
 }
 
-// UpdateGauge updates the gauge metric in the database
+// UpdateGauge updates a gauge metric in the database
 func (s *DBStorage) UpdateGauge(ctx context.Context, name string, value float64, shouldNotify bool) error {
 	stmt, err := s.db.PreparexContext(ctx, `
 			INSERT INTO gauges (name, value) VALUES ($1, $2)
@@ -102,7 +104,7 @@ func (s *DBStorage) UpdateGauge(ctx context.Context, name string, value float64,
 	return err
 }
 
-// UpdateCounter updates the counter metric in the database
+// UpdateCounter updates a counter metric in the database
 func (s *DBStorage) UpdateCounter(ctx context.Context, name string, value int64, shouldNotify bool) error {
 	stmt, err := s.db.PreparexContext(ctx, `
 			INSERT INTO counters (name, value) VALUES ($1, $2)
@@ -117,7 +119,7 @@ func (s *DBStorage) UpdateCounter(ctx context.Context, name string, value int64,
 	return err
 }
 
-// GetGauge retrieves the gauge metric value from the database
+// GetGauge retrieves a gauge metric by its name from the database
 func (s *DBStorage) GetGauge(ctx context.Context, name string) (float64, error) {
 	var value float64
 	err := s.db.QueryRowContext(ctx, "SELECT value FROM gauges WHERE name = $1", name).Scan(&value)
@@ -127,7 +129,7 @@ func (s *DBStorage) GetGauge(ctx context.Context, name string) (float64, error) 
 	return value, nil
 }
 
-// GetCounter retrieves the counter metric value from the database
+// GetCounter retrieves a counter metric by its name from the database
 func (s *DBStorage) GetCounter(ctx context.Context, name string) (int64, error) {
 	var value int64
 	err := s.db.QueryRowContext(ctx, "SELECT value FROM counters WHERE name = $1", name).Scan(&value)
@@ -137,7 +139,7 @@ func (s *DBStorage) GetCounter(ctx context.Context, name string) (int64, error) 
 	return value, nil
 }
 
-// SaveMetrics saves a slice of Metrics in a single transaction
+// SaveMetrics saves an array of metrics into the database in a single transaction
 func (s *DBStorage) SaveMetrics(ctx context.Context, metrics []models.Metrics, shouldNotify bool) error {
 	tx, err := s.db.Beginx()
 	if err != nil {
@@ -181,7 +183,7 @@ func (s *DBStorage) SaveMetrics(ctx context.Context, metrics []models.Metrics, s
 		}
 
 		switch metric.MType {
-		case "gauge":
+		case constants.MetricTypeGauge:
 			if metric.Value == nil {
 				return fmt.Errorf("value not provided for gauge: %s", metric.ID)
 			}
@@ -190,7 +192,7 @@ func (s *DBStorage) SaveMetrics(ctx context.Context, metrics []models.Metrics, s
 			if err != nil {
 				return err
 			}
-		case "counter":
+		case constants.MetricTypeCounter:
 			if metric.Delta == nil {
 				return fmt.Errorf("delta not provided for counter: %s", metric.ID)
 			}
@@ -207,6 +209,7 @@ func (s *DBStorage) SaveMetrics(ctx context.Context, metrics []models.Metrics, s
 	return tx.Commit()
 }
 
+// String fetches and formats metrics for a string representation
 func (s *DBStorage) String(ctx context.Context) string {
 	var result strings.Builder
 
@@ -223,7 +226,7 @@ func (s *DBStorage) String(ctx context.Context) string {
 	return result.String()
 }
 
-// fetch and format metrics
+// fetchAndFormat fetches metrics from the database and writes them into a string builder
 func (s *DBStorage) fetchAndFormat(ctx context.Context, query, header string, builder io.StringWriter, isFloat bool) error {
 	rows, err := s.db.QueryContext(ctx, query)
 	if err != nil {

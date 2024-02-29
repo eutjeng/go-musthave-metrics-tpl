@@ -15,6 +15,8 @@ import (
 
 func main() {
 	var wg sync.WaitGroup
+	var store models.GeneralStorageInterface
+	var errInit error
 
 	cfg, sugar, syncFunc, err := appinit.InitServerApp()
 	if err != nil {
@@ -22,31 +24,29 @@ func main() {
 	}
 	defer syncFunc()
 
-	var store models.GeneralStorageInterface
-	var errInit error
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	if cfg.DBDSN != "" {
+	if cfg.DBDSN == "" {
+		store, errInit = appinit.InitInMemoryStorage(cfg, sugar)
+	} else {
 		wg.Add(1)
 		store, errInit = appinit.InitDBStorage(ctx, cfg, sugar, &wg)
-	} else {
-		store, errInit = appinit.InitInMemoryStorage(cfg, sugar)
+
 	}
 
 	if errInit != nil {
 		sugar.Fatalf("Failed to initialize storage: %v", errInit)
 	}
 
-	srv := appinit.InitServer(cfg, router.SetupRouter(ctx, sugar, store, cfg.StoreInterval == 0))
+	srv := appinit.InitServer(cfg, router.SetupRouter(ctx, cfg, sugar, store, cfg.StoreInterval == 0))
 
 	quitChan, signalChan := appinit.InitSignalHandling()
 
 	go signalhandlers.HandleSignals(signalChan, quitChan, store, cfg, sugar)
 
 	errChan := make(chan error)
-	appinit.StartServer(srv, errChan)
+	appinit.StartServer(sugar, srv, errChan)
 
 	go func() {
 		signalhandlers.HandleServerErrors(errChan, sugar, cfg)
