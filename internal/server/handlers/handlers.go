@@ -11,6 +11,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/config"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/constants"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/models"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/utils"
@@ -67,8 +68,11 @@ func extractMetrics(r *http.Request) (string, string, *float64, *int64, error) {
 // HandleUpdateMetric is an HTTP handler that updates a metric in the storage
 // it extracts metric information from the request and uses it to update the metric in storage
 // responds with an HTTP status and, in case of JSON content type, a JSON-encoded response
-func HandleUpdateMetric(ctx context.Context, sugar *zap.SugaredLogger, storage models.GeneralStorageInterface, shouldNotify bool) http.HandlerFunc {
+func HandleUpdateMetric(ctx context.Context, cfg *config.Config, sugar *zap.SugaredLogger, storage models.GeneralStorageInterface, shouldNotify bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		ctxWithTimeout, cancel := context.WithTimeout(ctx, cfg.RequestTimeout)
+		defer cancel()
+
 		metricType, metricName, metricValue, metricDelta, err := extractMetrics(r)
 
 		if err != nil {
@@ -80,14 +84,14 @@ func HandleUpdateMetric(ctx context.Context, sugar *zap.SugaredLogger, storage m
 		switch metricType {
 		case constants.MetricTypeGauge:
 			if metricValue != nil {
-				err = storage.UpdateGauge(ctx, metricName, *metricValue, shouldNotify)
+				err = storage.UpdateGauge(ctxWithTimeout, metricName, *metricValue, shouldNotify)
 			} else {
 				http.Error(w, "Missing 'value' for gauge", http.StatusBadRequest)
 				return
 			}
 		case constants.MetricTypeCounter:
 			if metricDelta != nil {
-				err = storage.UpdateCounter(ctx, metricName, *metricDelta, shouldNotify)
+				err = storage.UpdateCounter(ctxWithTimeout, metricName, *metricDelta, shouldNotify)
 			} else {
 				http.Error(w, "Missing 'delta' for counter", http.StatusBadRequest)
 				return
@@ -133,10 +137,13 @@ func HandleUpdateMetric(ctx context.Context, sugar *zap.SugaredLogger, storage m
 // HandleGetMetric is an HTTP handler that retrieves a metric from the storage
 // it extracts metric information from the request and uses it to fetch the metric from storage
 // responds with the metric value in either JSON format or as a plain string based on the request's Content-Type header
-func HandleGetMetric(ctx context.Context, sugar *zap.SugaredLogger, storage models.GeneralStorageInterface) http.HandlerFunc {
+func HandleGetMetric(ctx context.Context, cfg *config.Config, sugar *zap.SugaredLogger, storage models.GeneralStorageInterface) http.HandlerFunc {
 	var v interface{}
 
 	return func(w http.ResponseWriter, r *http.Request) {
+		ctxWithTimeout, cancel := context.WithTimeout(ctx, cfg.RequestTimeout)
+		defer cancel()
+
 		metricType, metricName, _, _, err := extractMetrics(r)
 
 		if err != nil {
@@ -147,10 +154,10 @@ func HandleGetMetric(ctx context.Context, sugar *zap.SugaredLogger, storage mode
 
 		switch metricType {
 		case constants.MetricTypeGauge:
-			v, err = storage.GetGauge(ctx, metricName)
+			v, err = storage.GetGauge(ctxWithTimeout, metricName)
 
 		case constants.MetricTypeCounter:
-			v, err = storage.GetCounter(ctx, metricName)
+			v, err = storage.GetCounter(ctxWithTimeout, metricName)
 
 		default:
 			http.Error(w, "Invalid metric type", http.StatusBadRequest)
@@ -207,8 +214,11 @@ func HandleGetMetric(ctx context.Context, sugar *zap.SugaredLogger, storage mode
 }
 
 // HandleSaveMetrics is an HTTP handler that saves a batch of metrics in the storage
-func HandleSaveMetrics(ctx context.Context, sugar *zap.SugaredLogger, storage models.GeneralStorageInterface, shouldNotify bool) http.HandlerFunc {
+func HandleSaveMetrics(ctx context.Context, cfg *config.Config, sugar *zap.SugaredLogger, storage models.GeneralStorageInterface, shouldNotify bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		ctxWithTimeout, cancel := context.WithTimeout(ctx, cfg.RequestTimeout)
+		defer cancel()
+
 		var metrics []models.Metrics
 
 		decoder := json.NewDecoder(r.Body)
@@ -218,7 +228,7 @@ func HandleSaveMetrics(ctx context.Context, sugar *zap.SugaredLogger, storage mo
 			return
 		}
 
-		err = storage.SaveMetrics(ctx, metrics, shouldNotify)
+		err = storage.SaveMetrics(ctxWithTimeout, metrics, shouldNotify)
 		if err != nil {
 			sugar.Errorw("Failed to save metrics", err)
 			http.Error(w, fmt.Sprintf("Failed to save metrics: %s", err.Error()), http.StatusBadRequest)
@@ -229,13 +239,7 @@ func HandleSaveMetrics(ctx context.Context, sugar *zap.SugaredLogger, storage mo
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 
-			jsonData := struct {
-				Zero []models.Metrics `json:"0"`
-			}{
-				Zero: metrics,
-			}
-
-			if err := json.NewEncoder(w).Encode(jsonData); err != nil {
+			if err := json.NewEncoder(w).Encode(metrics); err != nil {
 				sugar.Errorw("Cannot encode response JSON body", err)
 				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			}
@@ -248,9 +252,12 @@ func HandleSaveMetrics(ctx context.Context, sugar *zap.SugaredLogger, storage mo
 // HandleMetricsHTML is an HTTP handler that generates an HTML page displaying all metrics
 // the page is generated based on the metrics data retrieved from the storage
 // responds with an HTML page containing the metrics
-func HandleMetricsHTML(ctx context.Context, sugar *zap.SugaredLogger, storage models.GeneralStorageInterface) http.HandlerFunc {
+func HandleMetricsHTML(ctx context.Context, cfg *config.Config, sugar *zap.SugaredLogger, storage models.GeneralStorageInterface) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		metricsString := storage.String(ctx)
+		ctxWithTimeout, cancel := context.WithTimeout(ctx, cfg.RequestTimeout)
+		defer cancel()
+
+		metricsString := storage.String(ctxWithTimeout)
 		html := "<html><head><title>Metrics</title>" +
 			"<style>body { background-color: black; color: white; font-size: 1.2rem; line-height: 1.5rem }</style>" +
 			"</head><body><pre>" +

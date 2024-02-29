@@ -13,9 +13,28 @@ import (
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/dbstorage"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/filestorage"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/logger"
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/models"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/storage"
 	"go.uber.org/zap"
 )
+
+// InitStore initializes the storage backend based on the provided configuration.
+// It uses either in-memory storage or database storage depending on the config.
+// The function takes a context, configuration object, a logger, and a wait group.
+// It returns a storage interface and possibly an error.
+func InitStore(ctx context.Context, cfg *config.Config, sugar *zap.SugaredLogger, wg *sync.WaitGroup) (models.GeneralStorageInterface, error) {
+	var store models.GeneralStorageInterface
+	var err error
+
+	if cfg.DBDSN == "" {
+		store, err = initInMemoryStorage(cfg, sugar)
+	} else {
+		wg.Add(1)
+		store, err = initDBStorage(ctx, cfg, sugar, wg)
+	}
+
+	return store, err
+}
 
 // initAppWithConfigParser initializes the application by loading the configuration and setting up the logger.
 // It uses the provided function to parse the configuration.
@@ -74,32 +93,35 @@ func InitSignalHandling() (chan struct{}, chan os.Signal) {
 }
 
 // StartServer launches the HTTP server in a goroutine and sends any errors to the provided channel
-func StartServer(srv *http.Server, errChan chan error) {
+func StartServer(sugar *zap.SugaredLogger, srv *http.Server, errChan chan error) {
 	go func() {
+		sugar.Infof("Server is running at %s", srv.Addr)
 		errChan <- srv.ListenAndServe()
 	}()
 }
 
-// InitDBStorage initializes a database storage based on the provided configuration and logger
-// it returns an instance of dbstorage.StorageInterface or an error if any step in the initialization fails
-func InitDBStorage(ctx context.Context, cfg *config.Config, sugar *zap.SugaredLogger, wg *sync.WaitGroup) (dbstorage.Interface, error) {
+// InitDBStorage initializes the database storage and returns an Interface.
+// It also starts a goroutine to close the database connection when the application context is done.
+// The function makes use of a WaitGroup (wg) to notify the main goroutine of the successful closure of the database.
+func initDBStorage(ctx context.Context, cfg *config.Config, sugar *zap.SugaredLogger, wg *sync.WaitGroup) (dbstorage.Interface, error) {
 	dbStorage, err := dbstorage.NewDBStorage(cfg)
 	if err != nil {
+		sugar.Errorf("failed to initialize db storage: %v", err)
 		return nil, err
 	}
 
 	go func() {
-		sugar.Info("Waiting for context to close database")
 		<-ctx.Done()
 		if err := dbStorage.Close(); err != nil {
-			sugar.Errorf("Error while closing the database: %v", err)
+			sugar.Errorf("error while closing the database: %v", err)
 		} else {
-			sugar.Info("Database closed successfully")
+			sugar.Info("database closed successfully")
 		}
 		wg.Done()
 	}()
 
 	if err := dbStorage.CreateTables(ctx); err != nil {
+		sugar.Errorf("failed to create tables: %v", err)
 		return nil, err
 	}
 	return dbStorage, nil
@@ -108,7 +130,7 @@ func InitDBStorage(ctx context.Context, cfg *config.Config, sugar *zap.SugaredLo
 // InitInMemoryStorage initializes an in-memory storage based on the provided configuration and logger
 // it restores any saved data and sets up automatic data saving
 // it returns an instance of storage.InMemoryStorage or an error if any step in the initialization fails
-func InitInMemoryStorage(cfg *config.Config, sugar *zap.SugaredLogger) (*storage.InMemoryStorage, error) {
+func initInMemoryStorage(cfg *config.Config, sugar *zap.SugaredLogger) (*storage.InMemoryStorage, error) {
 	storage := storage.NewInMemoryStorage()
 	filestorage.RestoreData(sugar, storage, cfg)
 	InitDataSave(sugar, storage, cfg)

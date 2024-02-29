@@ -40,8 +40,9 @@ func HandleServerErrors(errChan chan error, sugar *zap.SugaredLogger, cfg *confi
 	sugar.Fatalf("Failed to start HTTP server on address %s: %s", cfg.Addr, err)
 }
 
-// HandleShutdownServer waits for a signal to shutdown the server
-// It attempts to gracefully shutdown the HTTP server
+// HandleShutdownServer listens for a quit signal to properly shut down the server.
+// It ensures that all critical processes like database connections are cleanly terminated.
+// The function makes use of a WaitGroup (wg) to notify the main goroutine when all tasks are done.
 func HandleShutdownServer(ctx context.Context, quitChan chan struct{}, srv *http.Server, sugar *zap.SugaredLogger, wg *sync.WaitGroup, cancel context.CancelFunc) {
 	<-quitChan
 	sugar.Info("Received quit signal")

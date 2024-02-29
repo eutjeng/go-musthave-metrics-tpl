@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/eutjeng/go-musthave-metrics-tpl/internal/config"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/handlers"
 	"github.com/eutjeng/go-musthave-metrics-tpl/internal/server/storage"
 	"github.com/go-chi/chi/v5"
@@ -21,9 +22,10 @@ func TestHandleUpdateAndGetMetrics(t *testing.T) {
 	storage := storage.NewInMemoryStorage()
 	r := chi.NewRouter()
 	sugar := zap.NewExample().Sugar()
+	cfg := &config.Config{}
 
-	r.HandleFunc("/update", handlers.HandleUpdateMetric(context.TODO(), sugar, storage, false))
-	r.HandleFunc("/value", handlers.HandleGetMetric(context.TODO(), sugar, storage))
+	r.HandleFunc("/update", handlers.HandleUpdateMetric(context.TODO(), cfg, sugar, storage, false))
+	r.HandleFunc("/value", handlers.HandleGetMetric(context.TODO(), cfg, sugar, storage))
 
 	ts := httptest.NewServer(r)
 	defer ts.Close()
@@ -87,12 +89,13 @@ func TestHandleUpdateAndGetMetrics(t *testing.T) {
 func TestHandleMetricsHTML(t *testing.T) {
 	storage := storage.NewInMemoryStorage()
 	sugar := zap.NewExample().Sugar()
+	cfg := &config.Config{}
 
 	_ = storage.UpdateGauge(context.TODO(), "testGauge", 42.2, false)
 	_ = storage.UpdateCounter(context.TODO(), "testCounter", 42, false)
 
 	r := chi.NewRouter()
-	r.Get("/", handlers.HandleMetricsHTML(context.TODO(), sugar, storage))
+	r.Get("/", handlers.HandleMetricsHTML(context.TODO(), cfg, sugar, storage))
 
 	ts := httptest.NewServer(r)
 	defer ts.Close()
